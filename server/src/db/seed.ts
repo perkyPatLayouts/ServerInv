@@ -6,6 +6,8 @@ import { users } from "./schema/users.js";
 import { currencies } from "./schema/currencies.js";
 import { serverTypes } from "./schema/serverTypes.js";
 import { operatingSystems } from "./schema/operatingSystems.js";
+import { billingPeriods } from "./schema/billingPeriods.js";
+import { paymentMethods } from "./schema/paymentMethods.js";
 
 async function main() {
   const pool = new pg.Pool({
@@ -52,6 +54,30 @@ async function main() {
       { name: "Debian", version: "11", variant: "server" },
       { name: "CentOS", version: "9", variant: "server" },
       { name: "AlmaLinux", version: "9", variant: "server" },
+    ])
+    .onConflictDoNothing();
+
+  // Billing periods
+  await db
+    .insert(billingPeriods)
+    .values([
+      { name: "Hourly" },
+      { name: "Monthly" },
+      { name: "Quarterly" },
+      { name: "Yearly" },
+      { name: "2 Yearly" },
+      { name: "3 Yearly" },
+    ])
+    .onConflictDoNothing();
+
+  // Payment methods
+  await db
+    .insert(paymentMethods)
+    .values([
+      { name: "PayPal" },
+      { name: "Credit Card" },
+      { name: "Cash" },
+      { name: "Digital Currency" },
     ])
     .onConflictDoNothing();
 

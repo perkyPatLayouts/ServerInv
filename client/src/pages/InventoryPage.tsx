@@ -165,8 +165,8 @@ export default function InventoryPage() {
     },
     {
       id: "price",
-      header: "Price/mo",
-      accessorFn: (r) => r.priceMonthly ? `${r.currencySymbol || ""}${r.priceMonthly}` : "—",
+      header: "Price",
+      accessorFn: (r) => r.price ? `${r.currencySymbol || ""}${r.price}${r.billingPeriod ? ` / ${r.billingPeriod}` : ""}` : "—",
     },
     {
       accessorKey: "renewalDate",
@@ -332,8 +332,18 @@ export default function InventoryPage() {
                     <Field label="Location" value={[s.locationCity, s.locationCountry].filter(Boolean).join(", ")} />
                   )}
                   {s.locationDatacenter && <Field label="Datacenter" value={s.locationDatacenter} />}
-                  {s.priceMonthly && (
-                    <Field label="Price/mo" value={`${s.currencySymbol || ""}${s.priceMonthly}`} />
+                  {s.price && (
+                    <Field label="Price" value={`${s.currencySymbol || ""}${s.price}${s.billingPeriod ? ` / ${s.billingPeriod}` : ""}`} />
+                  )}
+                  {s.paymentMethod && <Field label="Payment" value={s.paymentMethod} />}
+                  {(s.recurring || s.autoRenew) && (
+                    <div className="min-w-0">
+                      <span className="text-text-secondary text-xs">Status</span>
+                      <div className="flex gap-1 mt-0.5">
+                        {s.recurring && <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent font-medium">Recurring</span>}
+                        {s.autoRenew && <span className="text-[10px] px-1.5 py-0.5 rounded bg-success/20 text-success font-medium">Auto Renew</span>}
+                      </div>
+                    </div>
                   )}
                   {s.renewalDate && <Field label="Renewal" value={s.renewalDate} highlight={isDueSoon(s.renewalDate)} />}
                   {s.osName && <Field label="OS" value={`${s.osName} ${s.osVersion}`} />}

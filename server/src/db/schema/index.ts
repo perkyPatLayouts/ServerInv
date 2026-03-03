@@ -5,6 +5,8 @@ export { providers } from "./providers";
 export { serverTypes } from "./serverTypes";
 export { cpuTypes } from "./cpuTypes";
 export { operatingSystems } from "./operatingSystems";
+export { billingPeriods } from "./billingPeriods";
+export { paymentMethods } from "./paymentMethods";
 export { servers } from "./servers";
 export { serverWebsites } from "./serverWebsites";
 export { backupConfig } from "./backupConfig";

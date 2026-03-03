@@ -11,6 +11,8 @@ import providerRoutes from "./routes/providers.js";
 import cpuTypeRoutes from "./routes/cpuTypes.js";
 import osRoutes from "./routes/operatingSystems.js";
 import serverTypeRoutes from "./routes/serverTypes.js";
+import billingPeriodRoutes from "./routes/billingPeriods.js";
+import paymentMethodRoutes from "./routes/paymentMethods.js";
 import userRoutes from "./routes/users.js";
 import backupRoutes from "./routes/backup.js";
 import { authenticate } from "./middleware/auth.js";
@@ -33,6 +35,8 @@ app.use("/api/providers", authenticate, providerRoutes);
 app.use("/api/cpu-types", authenticate, cpuTypeRoutes);
 app.use("/api/os", authenticate, osRoutes);
 app.use("/api/server-types", authenticate, serverTypeRoutes);
+app.use("/api/billing-periods", authenticate, billingPeriodRoutes);
+app.use("/api/payment-methods", authenticate, paymentMethodRoutes);
 app.use("/api/users", authenticate, userRoutes);
 app.use("/api/backup", authenticate, backupRoutes);
 

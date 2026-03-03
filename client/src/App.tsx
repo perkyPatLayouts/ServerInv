@@ -15,6 +15,8 @@ import ServerUrlsPage from "./pages/ServerUrlsPage";
 import ServerIpsPage from "./pages/ServerIpsPage";
 import UsersPage from "./pages/UsersPage";
 import DatacentersPage from "./pages/DatacentersPage";
+import BillingPeriodsPage from "./pages/BillingPeriodsPage";
+import PaymentMethodsPage from "./pages/PaymentMethodsPage";
 import BackupPage from "./pages/BackupPage";
 
 /** Route guard that redirects to login if not authenticated. */
@@ -45,6 +47,8 @@ export default function App() {
         <Route path="locations" element={<LocationsPage />} />
         <Route path="datacenters" element={<DatacentersPage />} />
         <Route path="server-types" element={<ServerTypesPage />} />
+        <Route path="billing-periods" element={<BillingPeriodsPage />} />
+        <Route path="payment-methods" element={<PaymentMethodsPage />} />
         <Route path="operating-systems" element={<OperatingSystemsPage />} />
         <Route path="server-urls" element={<ServerUrlsPage />} />
         <Route path="server-ips" element={<ServerIpsPage />} />

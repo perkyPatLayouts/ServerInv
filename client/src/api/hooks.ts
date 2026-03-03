@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "./client";
-import type { Server, Currency, Location, Provider, CpuType, OperatingSystem, ServerType, User } from "../types";
+import type { Server, Currency, Location, Provider, CpuType, OperatingSystem, ServerType, BillingPeriod, PaymentMethod, User } from "../types";
 
 /** Generic list + CRUD hooks factory. */
 function useCrud<T extends { id: number }>(key: string, path: string) {
@@ -22,6 +22,8 @@ export function useProviders() { return useCrud<Provider>("providers", "/provide
 export function useCpuTypes() { return useCrud<CpuType>("cpuTypes", "/cpu-types"); }
 export function useOperatingSystems() { return useCrud<OperatingSystem>("os", "/os"); }
 export function useServerTypes() { return useCrud<ServerType>("serverTypes", "/server-types"); }
+export function useBillingPeriods() { return useCrud<BillingPeriod>("billingPeriods", "/billing-periods"); }
+export function usePaymentMethods() { return useCrud<PaymentMethod>("paymentMethods", "/payment-methods"); }
 export function useUsers() { return useCrud<User>("users", "/users"); }
 
 export function useWebsites(serverId: number) {

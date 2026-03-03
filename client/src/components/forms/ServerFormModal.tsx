@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { useServers, useCurrencies, useLocations, useProviders, useCpuTypes, useOperatingSystems, useServerTypes } from "../../api/hooks";
+import { useServers, useCurrencies, useLocations, useProviders, useCpuTypes, useOperatingSystems, useServerTypes, useBillingPeriods, usePaymentMethods } from "../../api/hooks";
 import { Server } from "../../types";
 import Modal from "../ui/Modal";
 import Input from "../ui/Input";
@@ -22,6 +22,8 @@ export default function ServerFormModal({ open, server, onClose }: Props) {
   const cpuTypes = useCpuTypes().list;
   const { list: osList, create: createOs } = useOperatingSystems();
   const serverTypes = useServerTypes().list;
+  const billingPeriods = useBillingPeriods().list;
+  const paymentMethods = usePaymentMethods().list;
 
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm({ defaultValues: getDefaults(server) });
 
@@ -36,10 +38,13 @@ export default function ServerFormModal({ open, server, onClose }: Props) {
       currencyId: data.currencyId ? +data.currencyId : null,
       cpuTypeId: data.cpuTypeId ? +data.cpuTypeId : null,
       osId: data.osId ? +data.osId : null,
+      billingPeriodId: data.billingPeriodId ? +data.billingPeriodId : null,
+      paymentMethodId: data.paymentMethodId ? +data.paymentMethodId : null,
+      recurring: !!data.recurring,
+      autoRenew: !!data.autoRenew,
       ram: data.ram ? +data.ram : null,
       diskSize: data.diskSize ? +data.diskSize : null,
-      priceMonthly: data.priceMonthly || null,
-      priceYearly: data.priceYearly || null,
+      price: data.price || null,
       renewalDate: data.renewalDate || null,
     };
     if (server) {
@@ -99,14 +104,37 @@ export default function ServerFormModal({ open, server, onClose }: Props) {
           )}
         />
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Input label="Price/Month" {...register("priceMonthly")} type="number" step="0.01" />
-          <Input label="Price/Year" {...register("priceYearly")} type="number" step="0.01" />
+          <Input label="Price" {...register("price")} type="number" step="0.01" />
+          <Select
+            label="Billing Period"
+            {...register("billingPeriodId")}
+            placeholder="Select..."
+            options={(billingPeriods.data || []).map((b) => ({ value: b.id, label: b.name }))}
+          />
           <Select
             label="Currency"
             {...register("currencyId")}
             placeholder="Select..."
             options={(currencies.data || []).map((c) => ({ value: c.id, label: `${c.code} (${c.symbol})` }))}
           />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Select
+            label="Payment Method"
+            {...register("paymentMethodId")}
+            placeholder="Select..."
+            options={(paymentMethods.data || []).map((p) => ({ value: p.id, label: p.name }))}
+          />
+          <div className="flex items-center gap-4 pt-6">
+            <label className="flex items-center gap-2 text-sm text-text-primary cursor-pointer">
+              <input type="checkbox" {...register("recurring")} className="rounded border-border" />
+              Recurring
+            </label>
+            <label className="flex items-center gap-2 text-sm text-text-primary cursor-pointer">
+              <input type="checkbox" {...register("autoRenew")} className="rounded border-border" />
+              Auto Renew
+            </label>
+          </div>
         </div>
         <Input label="Renewal Date" {...register("renewalDate")} type="date" />
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -254,7 +282,7 @@ function InlineOsForm({ onSave, onCancel, createOs }: { onSave: (o: any) => void
 }
 
 function getDefaults(server: Server | null) {
-  if (!server) return { name: "", url: "", ip: "", serverTypeId: "", providerId: "", locationId: "", priceMonthly: "", priceYearly: "", currencyId: "", renewalDate: "", ram: "", diskSize: "", diskType: "", cpuTypeId: "", osId: "", notes: "" };
+  if (!server) return { name: "", url: "", ip: "", serverTypeId: "", providerId: "", locationId: "", price: "", billingPeriodId: "", paymentMethodId: "", recurring: false, autoRenew: false, currencyId: "", renewalDate: "", ram: "", diskSize: "", diskType: "", cpuTypeId: "", osId: "", notes: "" };
   return {
     name: server.name,
     url: server.url || "",
@@ -262,8 +290,11 @@ function getDefaults(server: Server | null) {
     serverTypeId: server.serverTypeId?.toString() || "",
     providerId: server.providerId?.toString() || "",
     locationId: server.locationId?.toString() || "",
-    priceMonthly: server.priceMonthly || "",
-    priceYearly: server.priceYearly || "",
+    price: server.price || "",
+    billingPeriodId: server.billingPeriodId?.toString() || "",
+    paymentMethodId: server.paymentMethodId?.toString() || "",
+    recurring: server.recurring ?? false,
+    autoRenew: server.autoRenew ?? false,
     currencyId: server.currencyId?.toString() || "",
     renewalDate: server.renewalDate || "",
     ram: server.ram?.toString() || "",

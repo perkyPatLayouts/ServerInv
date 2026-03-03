@@ -10,6 +10,8 @@ import { locations } from "../db/schema/locations.js";
 import { currencies } from "../db/schema/currencies.js";
 import { cpuTypes } from "../db/schema/cpuTypes.js";
 import { operatingSystems } from "../db/schema/operatingSystems.js";
+import { billingPeriods } from "../db/schema/billingPeriods.js";
+import { paymentMethods } from "../db/schema/paymentMethods.js";
 import { validate } from "../middleware/validate.js";
 import { requireAdmin } from "../middleware/auth.js";
 
@@ -22,8 +24,11 @@ const serverSchema = z.object({
   serverTypeId: z.number().int().nullable().optional(),
   providerId: z.number().int().nullable().optional(),
   locationId: z.number().int().nullable().optional(),
-  priceMonthly: z.string().or(z.number()).transform(String).nullable().optional(),
-  priceYearly: z.string().or(z.number()).transform(String).nullable().optional(),
+  price: z.string().or(z.number()).transform(String).nullable().optional(),
+  billingPeriodId: z.number().int().nullable().optional(),
+  paymentMethodId: z.number().int().nullable().optional(),
+  recurring: z.boolean().optional(),
+  autoRenew: z.boolean().optional(),
   currencyId: z.number().int().nullable().optional(),
   renewalDate: z.string().nullable().optional(),
   ram: z.number().int().nullable().optional(),
@@ -45,8 +50,11 @@ router.get("/", async (_req: Request, res: Response) => {
       serverTypeId: servers.serverTypeId,
       providerId: servers.providerId,
       locationId: servers.locationId,
-      priceMonthly: servers.priceMonthly,
-      priceYearly: servers.priceYearly,
+      price: servers.price,
+      billingPeriodId: servers.billingPeriodId,
+      paymentMethodId: servers.paymentMethodId,
+      recurring: servers.recurring,
+      autoRenew: servers.autoRenew,
       currencyId: servers.currencyId,
       renewalDate: servers.renewalDate,
       ram: servers.ram,
@@ -70,6 +78,8 @@ router.get("/", async (_req: Request, res: Response) => {
       osName: operatingSystems.name,
       osVersion: operatingSystems.version,
       osVariant: operatingSystems.variant,
+      billingPeriod: billingPeriods.name,
+      paymentMethod: paymentMethods.name,
     })
     .from(servers)
     .leftJoin(serverTypes, eq(servers.serverTypeId, serverTypes.id))
@@ -77,7 +87,9 @@ router.get("/", async (_req: Request, res: Response) => {
     .leftJoin(locations, eq(servers.locationId, locations.id))
     .leftJoin(currencies, eq(servers.currencyId, currencies.id))
     .leftJoin(cpuTypes, eq(servers.cpuTypeId, cpuTypes.id))
-    .leftJoin(operatingSystems, eq(servers.osId, operatingSystems.id));
+    .leftJoin(operatingSystems, eq(servers.osId, operatingSystems.id))
+    .leftJoin(billingPeriods, eq(servers.billingPeriodId, billingPeriods.id))
+    .leftJoin(paymentMethods, eq(servers.paymentMethodId, paymentMethods.id));
 
   // Attach websites for each server
   const websiteRows = await db.select().from(serverWebsites);

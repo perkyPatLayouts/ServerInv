@@ -11,6 +11,8 @@ const navItems = [
   { to: "/locations", label: "Locations" },
   { to: "/datacenters", label: "Datacenters" },
   { to: "/server-types", label: "Server Types" },
+  { to: "/billing-periods", label: "Billing Periods" },
+  { to: "/payment-methods", label: "Payment Methods" },
   { to: "/operating-systems", label: "OS & Versions" },
   { to: "/server-urls", label: "Server URLs" },
   { to: "/server-ips", label: "Server IPs" },

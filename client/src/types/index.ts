@@ -6,8 +6,11 @@ export interface Server {
   serverTypeId: number | null;
   providerId: number | null;
   locationId: number | null;
-  priceMonthly: string | null;
-  priceYearly: string | null;
+  price: string | null;
+  billingPeriodId: number | null;
+  paymentMethodId: number | null;
+  recurring: boolean;
+  autoRenew: boolean;
   currencyId: number | null;
   renewalDate: string | null;
   ram: number | null;
@@ -26,6 +29,8 @@ export interface Server {
   locationDatacenter?: string | null;
   currencyCode?: string | null;
   currencySymbol?: string | null;
+  billingPeriod?: string | null;
+  paymentMethod?: string | null;
   cpuType?: string | null;
   cpuCores?: number | null;
   cpuSpeed?: string | null;
@@ -47,6 +52,8 @@ export interface Currency { id: number; code: string; name: string; symbol: stri
 export interface Location { id: number; city: string; country: string; datacenter: string | null; }
 export interface Provider { id: number; name: string; siteUrl: string | null; controlPanelUrl: string | null; }
 export interface ServerType { id: number; name: string; }
+export interface BillingPeriod { id: number; name: string; }
+export interface PaymentMethod { id: number; name: string; }
 export interface CpuType { id: number; type: string; cores: number; speed: string; }
 export interface OperatingSystem { id: number; name: string; version: string; variant: string; }
 export interface User { id: number; username: string; role: string; createdAt?: string; }

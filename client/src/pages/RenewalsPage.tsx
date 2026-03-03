@@ -80,8 +80,8 @@ export default function RenewalsPage() {
     },
     {
       id: "price",
-      header: "Price/mo",
-      accessorFn: (r) => r.priceMonthly ? `${r.currencySymbol || ""}${r.priceMonthly}` : "—",
+      header: "Price",
+      accessorFn: (r) => r.price ? `${r.currencySymbol || ""}${r.price}${r.billingPeriod ? ` / ${r.billingPeriod}` : ""}` : "—",
     },
     { accessorKey: "serverType", header: "Type" },
   ];
@@ -112,7 +112,7 @@ export default function RenewalsPage() {
                       <div><ProviderLink name={s.providerName} siteUrl={s.providerSiteUrl} cpUrl={s.providerControlPanelUrl} /></div>
                     </div>
                   )}
-                  {s.priceMonthly && <div><span className="text-text-secondary text-xs">Price/mo</span><div className="text-text-primary">{s.currencySymbol || ""}{s.priceMonthly}</div></div>}
+                  {s.price && <div><span className="text-text-secondary text-xs">Price</span><div className="text-text-primary">{s.currencySymbol || ""}{s.price}{s.billingPeriod ? ` / ${s.billingPeriod}` : ""}</div></div>}
                   {s.serverType && <div><span className="text-text-secondary text-xs">Type</span><div className="text-text-primary">{s.serverType}</div></div>}
                 </div>
               </div>
