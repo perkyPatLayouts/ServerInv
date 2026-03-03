@@ -12,7 +12,7 @@
 | Backend | Node.js, Express 4, TypeScript |
 | Database | PostgreSQL 16, Drizzle ORM |
 | Auth | JWT (jsonwebtoken), bcryptjs |
-| Backup | ssh2-sftp-client |
+| Backup | Browser download/upload (multer for file handling) |
 
 ## Project Structure
 
@@ -111,6 +111,7 @@ ServerInv/
 │   └── tsconfig.json
 ├── deploy/
 │   ├── setup.sh                       # Automated deployment script
+│   ├── update.sh                      # Remote update script
 │   ├── serverinv.service              # systemd unit file
 │   └── serverinv.nginx                # nginx config
 ├── docker-compose.yml                 # Dev PostgreSQL
@@ -178,7 +179,7 @@ npm run dev
 
 **Data fetching with `useCrud` hook factory**: The `hooks.ts` file exports a `useCrud<T>()` factory that generates `list`, `create`, `update`, and `remove` hooks for any entity. All hooks use TanStack React Query with automatic cache invalidation.
 
-**Theme system**: CSS custom properties defined in `index.css` under `@theme`. All components use semantic color names (`text-text-primary`, `bg-surface`, `border-border`, etc.) rather than raw Tailwind color classes. The `themeStore` manages persistence and applies the theme class to `<html>`.
+**Theme system**: CSS custom properties defined in `index.css` under `@theme` (dark theme defaults) with `.light` class overrides. All components use semantic color names (`text-text-primary`, `bg-surface`, `border-border`, etc.) rather than raw Tailwind color classes. The `themeStore` manages persistence and applies the theme class (`dark` or `light`) to `<html>`. Adding new themes requires adding a new CSS class with overrides for all `--color-*` variables.
 
 **Inventory filters**: Multi-select dropdowns backed by URL search params. Filter state is a `Record<string, Set<number>>` mapping filter keys to selected IDs. Datacenter filtering maps datacenter names back to locationIds.
 

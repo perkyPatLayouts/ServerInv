@@ -55,6 +55,7 @@ export default function InventoryPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [websiteServer, setWebsiteServer] = useState<Server | null>(null);
+  const [expandedNotes, setExpandedNotes] = useState<Set<number>>(new Set());
 
   const serverTypes = useServerTypes().list;
   const providers = useProviders().list;
@@ -362,6 +363,35 @@ export default function InventoryPage() {
                       ))}
                     </div>
                   </div>
+                )}
+
+                {s.notes && (
+                  <>
+                    <button
+                      onClick={() => setExpandedNotes((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(s.id)) next.delete(s.id);
+                        else next.add(s.id);
+                        return next;
+                      })}
+                      className="w-full border-t border-border pt-2 mt-2 flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors"
+                    >
+                      <svg
+                        className={`w-3.5 h-3.5 transition-transform ${expandedNotes.has(s.id) ? "rotate-90" : ""}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                      Notes
+                    </button>
+                    {expandedNotes.has(s.id) && (
+                      <div className="text-sm text-text-secondary bg-surface-alt rounded px-3 py-2 whitespace-pre-wrap">
+                        {s.notes}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             );

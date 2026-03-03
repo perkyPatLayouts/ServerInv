@@ -1,139 +1,118 @@
 import { Router, Request, Response } from "express";
-import { eq } from "drizzle-orm";
-import { z } from "zod";
-import { db } from "../db/index.js";
-import { backupConfig } from "../db/schema/backupConfig.js";
-import { validate } from "../middleware/validate.js";
 import { requireAdmin } from "../middleware/auth.js";
 import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
-import SftpClient from "ssh2-sftp-client";
+import multer, { FileFilterCallback } from "multer";
 
 const router = Router();
 
-const configSchema = z.object({
-  host: z.string().min(1).max(500),
-  port: z.number().int().default(22),
-  username: z.string().min(1).max(200),
-  password: z.string().max(500).nullable().optional(),
-  privateKey: z.string().max(5000).nullable().optional(),
-  remotePath: z.string().min(1).max(500),
+const upload = multer({
+  dest: "/tmp",
+  limits: { fileSize: 100 * 1024 * 1024 },
+  fileFilter: (_req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
+    if (file.originalname.endsWith(".sql")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only .sql files are allowed"));
+    }
+  },
 });
 
-/** GET /api/backup/config */
-router.get("/config", requireAdmin, async (_req: Request, res: Response) => {
-  const rows = await db.select().from(backupConfig);
-  res.json(rows[0] || null);
-});
-
-/** POST /api/backup/config */
-router.post("/config", requireAdmin, validate(configSchema), async (req: Request, res: Response) => {
-  const existing = await db.select().from(backupConfig);
-  if (existing.length) {
-    const [row] = await db.update(backupConfig).set(req.body).where(eq(backupConfig.id, existing[0].id)).returning();
-    res.json(row);
-  } else {
-    const [row] = await db.insert(backupConfig).values(req.body).returning();
-    res.status(201).json(row);
+/** Check if a command exists on the host. */
+function commandExists(cmd: string): boolean {
+  try {
+    execSync(`command -v ${cmd}`, { stdio: "pipe" });
+    return true;
+  } catch {
+    return false;
   }
-});
+}
 
-/** POST /api/backup/export — create backup and upload via SFTP */
-router.post("/export", requireAdmin, async (_req: Request, res: Response) => {
-  const [config] = await db.select().from(backupConfig);
-  if (!config) { res.status(400).json({ error: "Backup not configured" }); return; }
+/** Parse DATABASE_URL into components for docker exec usage. */
+function parseDbUrl(url: string) {
+  const m = url.match(/postgres(?:ql)?:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
+  if (!m) throw new Error("Invalid DATABASE_URL format");
+  return { user: m[1], password: m[2], host: m[3], port: m[4], database: m[5] };
+}
 
+/** Find the running postgres docker container name. */
+function getDockerContainer(): string {
+  const out = execSync(
+    'docker ps --filter "ancestor=postgres:16-alpine" --format "{{.Names}}"',
+    { stdio: "pipe" }
+  ).toString().trim();
+  if (!out) throw new Error("No running PostgreSQL Docker container found");
+  return out.split("\n")[0];
+}
+
+/** GET /api/backup/download — create pg_dump and stream to browser */
+router.get("/download", requireAdmin, async (_req: Request, res: Response) => {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const filename = `serverinv-backup-${timestamp}.sql`;
   const tmpFile = path.join("/tmp", filename);
 
   try {
     const dbUrl = process.env.DATABASE_URL!;
-    execSync(`pg_dump "${dbUrl}" > "${tmpFile}"`);
 
-    const sftp = new SftpClient();
-    const sftpConfig: any = {
-      host: config.host,
-      port: config.port,
-      username: config.username,
-    };
-    if (config.privateKey) sftpConfig.privateKey = config.privateKey;
-    else if (config.password) sftpConfig.password = config.password;
+    if (commandExists("pg_dump")) {
+      execSync(`pg_dump "${dbUrl}" > "${tmpFile}"`);
+    } else {
+      const db = parseDbUrl(dbUrl);
+      const container = getDockerContainer();
+      execSync(
+        `docker exec -e PGPASSWORD="${db.password}" ${container} pg_dump -U ${db.user} ${db.database} > "${tmpFile}"`,
+      );
+    }
 
-    await sftp.connect(sftpConfig);
-    const remoteDest = `${config.remotePath}/${filename}`;
-    await sftp.put(tmpFile, remoteDest);
-    await sftp.end();
+    res.setHeader("Content-Type", "application/sql");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
 
-    fs.unlinkSync(tmpFile);
-    res.json({ success: true, filename, remote: remoteDest });
+    const stream = fs.createReadStream(tmpFile);
+    stream.pipe(res);
+    stream.on("end", () => {
+      fs.unlinkSync(tmpFile);
+    });
+    stream.on("error", () => {
+      if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Failed to stream backup" });
+      }
+    });
   } catch (err: any) {
     if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
     res.status(500).json({ error: "Backup failed", details: err.message });
   }
 });
 
-/** POST /api/backup/restore — download from SFTP and restore */
-router.post("/restore", requireAdmin, async (req: Request, res: Response) => {
-  const [config] = await db.select().from(backupConfig);
-  if (!config) { res.status(400).json({ error: "Backup not configured" }); return; }
+/** POST /api/backup/restore — accept uploaded .sql file and restore */
+router.post("/restore", requireAdmin, upload.single("backup"), async (req: Request, res: Response) => {
+  const file = req.file;
+  if (!file) {
+    res.status(400).json({ error: "No backup file uploaded" });
+    return;
+  }
 
-  const { filename } = req.body;
-  if (!filename) { res.status(400).json({ error: "filename required" }); return; }
-
-  const tmpFile = path.join("/tmp", filename);
+  const tmpFile = file.path;
   try {
-    const sftp = new SftpClient();
-    const sftpConfig: any = {
-      host: config.host,
-      port: config.port,
-      username: config.username,
-    };
-    if (config.privateKey) sftpConfig.privateKey = config.privateKey;
-    else if (config.password) sftpConfig.password = config.password;
-
-    await sftp.connect(sftpConfig);
-    await sftp.get(`${config.remotePath}/${filename}`, tmpFile);
-    await sftp.end();
-
     const dbUrl = process.env.DATABASE_URL!;
-    execSync(`psql "${dbUrl}" < "${tmpFile}"`);
+
+    if (commandExists("psql")) {
+      execSync(`psql "${dbUrl}" < "${tmpFile}"`, { stdio: "pipe" });
+    } else {
+      const db = parseDbUrl(dbUrl);
+      const container = getDockerContainer();
+      execSync(
+        `docker exec -i -e PGPASSWORD="${db.password}" ${container} psql -U ${db.user} ${db.database} < "${tmpFile}"`,
+        { stdio: ["pipe", "pipe", "pipe"] },
+      );
+    }
 
     fs.unlinkSync(tmpFile);
     res.json({ success: true });
   } catch (err: any) {
     if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
     res.status(500).json({ error: "Restore failed", details: err.message });
-  }
-});
-
-/** GET /api/backup/list — list remote backups */
-router.get("/list", requireAdmin, async (_req: Request, res: Response) => {
-  const [config] = await db.select().from(backupConfig);
-  if (!config) { res.status(400).json({ error: "Backup not configured" }); return; }
-
-  try {
-    const sftp = new SftpClient();
-    const sftpConfig: any = {
-      host: config.host,
-      port: config.port,
-      username: config.username,
-    };
-    if (config.privateKey) sftpConfig.privateKey = config.privateKey;
-    else if (config.password) sftpConfig.password = config.password;
-
-    await sftp.connect(sftpConfig);
-    const files = await sftp.list(config.remotePath);
-    await sftp.end();
-
-    const backups = files
-      .filter((f) => f.name.startsWith("serverinv-backup-") && f.name.endsWith(".sql"))
-      .map((f) => ({ name: f.name, size: f.size, modifyTime: f.modifyTime }))
-      .sort((a, b) => b.modifyTime - a.modifyTime);
-    res.json(backups);
-  } catch (err: any) {
-    res.status(500).json({ error: "Failed to list backups", details: err.message });
   }
 });
 

@@ -44,22 +44,36 @@ export function useWebsites(serverId: number) {
   return { list, create, update, remove };
 }
 
-export function useBackupConfig() {
-  const qc = useQueryClient();
-  const query = useQuery({ queryKey: ["backupConfig"], queryFn: () => api.get("/backup/config").then((r) => r.data) });
-  const save = useMutation({ mutationFn: (data: any) => api.post("/backup/config", data).then((r) => r.data), onSuccess: () => qc.invalidateQueries({ queryKey: ["backupConfig"] }) });
-  return { query, save };
+/** Download database backup as .sql file to browser. */
+export function useBackupDownload() {
+  return useMutation({
+    mutationFn: async () => {
+      const res = await api.get("/backup/download", { responseType: "blob" });
+      const disposition = res.headers["content-disposition"] || "";
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const filename = match ? match[1] : "serverinv-backup.sql";
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      return { filename };
+    },
+  });
 }
 
-export function useBackupList() {
-  return useQuery({ queryKey: ["backupList"], queryFn: () => api.get("/backup/list").then((r) => r.data) });
-}
-
-export function useBackupExport() {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: () => api.post("/backup/export").then((r) => r.data), onSuccess: () => qc.invalidateQueries({ queryKey: ["backupList"] }) });
-}
-
+/** Upload .sql backup file to restore database. */
 export function useBackupRestore() {
-  return useMutation({ mutationFn: (filename: string) => api.post("/backup/restore", { filename }).then((r) => r.data) });
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("backup", file);
+      return api.post("/backup/restore", form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      }).then((r) => r.data);
+    },
+  });
 }

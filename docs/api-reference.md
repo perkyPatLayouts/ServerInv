@@ -305,51 +305,32 @@ List all users (password field excluded).
 
 All backup endpoints require admin role.
 
-### GET /api/backup/config
+### GET /api/backup/download
 
-Get the current SFTP backup configuration.
+Download a full database backup as a `.sql` file. The response streams the file with `Content-Disposition: attachment` headers.
 
-### POST /api/backup/config
+**Response (200):** Binary `.sql` file download.
 
-Save SFTP configuration.
-
-```json
-{
-  "host": "backup.example.com",
-  "port": 22,
-  "username": "backupuser",
-  "password": "secret",
-  "privateKey": null,
-  "remotePath": "/backups/serverinv"
-}
+**Response headers:**
 ```
-
-### GET /api/backup/list
-
-List backup files on the remote SFTP server.
-
-**Response (200):**
-```json
-[
-  { "name": "serverinv_2026-03-03.sql.gz", "size": 15360, "modifyTime": 1741024800 }
-]
-```
-
-### POST /api/backup/export
-
-Create a database dump and upload to SFTP.
-
-**Response (200):**
-```json
-{ "filename": "serverinv_2026-03-03.sql.gz" }
+Content-Type: application/sql
+Content-Disposition: attachment; filename="serverinv-backup-2026-03-03T12-00-00-000Z.sql"
 ```
 
 ### POST /api/backup/restore
 
-Download and restore a backup from SFTP.
+Upload a `.sql` backup file to restore the database. Uses `multipart/form-data` with a field named `backup`.
 
+**Request:** `multipart/form-data` with field `backup` containing a `.sql` file (max 100 MB).
+
+**Response (200):**
 ```json
-{ "filename": "serverinv_2026-03-03.sql.gz" }
+{ "success": true }
+```
+
+**Response (400):**
+```json
+{ "error": "No backup file uploaded" }
 ```
 
 ---

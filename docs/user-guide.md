@@ -2,7 +2,7 @@
 
 ## Overview
 
-ServerInv lets you track your hosting infrastructure in one place: servers, providers, costs, renewal dates, websites, and hardware specs. It features a dark dashboard theme with card-based layouts.
+ServerInv lets you track your hosting infrastructure in one place: servers, providers, costs, renewal dates, websites, and hardware specs. It features dark and light themes with card-based layouts.
 
 ## Logging In
 
@@ -42,7 +42,10 @@ The sidebar contains all navigation items:
 
 ## Theme
 
-Use the sun/moon icon in the top-right header to toggle between dark and light themes. Your preference is saved across sessions.
+Use the sun/moon icon in the top-right header to toggle between **dark** and **light** themes. Your preference is automatically saved to browser local storage and persists across sessions.
+
+- **Dark theme**: Deep navy background with purple accents — ideal for low-light environments
+- **Light theme**: Clean white surfaces with refined purple accents — ideal for daytime use
 
 ## Views: Cards and Table
 
@@ -68,6 +71,7 @@ Each card displays:
 - OS, CPU, RAM, disk specs
 - Websites & Apps (each linked to open in a new browser tab)
 - Sites count (click to manage websites)
+- **Notes** (collapsible) — if notes exist, a "Notes" toggle appears at the bottom of the card. Click the arrow to expand/collapse the notes content.
 
 ### Filtering
 
@@ -159,17 +163,13 @@ Manage user accounts:
 
 ## Backup Page (Admin Only)
 
-### SFTP Configuration
+### Downloading a Backup
 
-Configure the remote SFTP server for storing backups:
-- Host, port, username
-- Password or private key authentication
-- Remote path for backup storage
-
-### Creating a Backup
-
-Click **Create Backup** to generate a database dump and upload it to the configured SFTP server.
+Click **Download Backup** to generate a full database dump and download it as a `.sql` file directly to your browser. Save this file in a secure location for safekeeping.
 
 ### Restoring a Backup
 
-The **Remote Backups** section lists all backups on the SFTP server. Click **Restore** on any backup to overwrite the current database with that backup's data. A confirmation prompt appears before proceeding.
+1. Click **Upload & Restore** and select a previously downloaded `.sql` backup file from your computer.
+2. A warning dialog will appear explaining that the existing database will be completely replaced.
+3. Click **Yes, Restore** to proceed, or **Cancel** to abort.
+4. After a successful restore, refresh the page to see the restored data.

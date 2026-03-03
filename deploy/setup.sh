@@ -31,9 +31,21 @@ sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" |
   sudo -u postgres createdb -O $DB_USER $DB_NAME
 
 echo "==> Deploying application to $APP_DIR"
-mkdir -p $APP_DIR
-cp -r . $APP_DIR/
-chown -R $APP_USER:$APP_USER $APP_DIR
+if [ -d "$APP_DIR/.git" ]; then
+  echo "    App directory already exists, pulling latest..."
+  cd $APP_DIR
+  sudo -u $APP_USER git pull
+else
+  REPO_URL="${1:-}"
+  if [ -z "$REPO_URL" ]; then
+    echo "    No git URL provided, copying files..."
+    mkdir -p $APP_DIR
+    cp -r . $APP_DIR/
+  else
+    git clone "$REPO_URL" $APP_DIR
+  fi
+  chown -R $APP_USER:$APP_USER $APP_DIR
+fi
 
 echo "==> Creating .env"
 cat > $APP_DIR/.env << EOF

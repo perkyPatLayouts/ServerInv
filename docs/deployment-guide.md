@@ -246,7 +246,28 @@ This allows SSH (22), HTTP (80), and HTTPS (443).
 
 ## Updating the Application
 
+### Automated Update (Recommended)
+
+An update script is provided at `deploy/update.sh`:
+
 ```bash
+sudo bash /opt/serverinv/deploy/update.sh
+```
+
+This script will:
+1. Stop the ServerInv service
+2. Pull the latest code via `git pull`
+3. Install any new dependencies
+4. Rebuild the frontend
+5. Run database migrations
+6. Restart the service and show its status
+
+### Manual Update
+
+```bash
+# Stop the service
+sudo systemctl stop serverinv
+
 cd /opt/serverinv
 
 # Pull latest code (or upload new files)
@@ -265,51 +286,44 @@ sudo -u serverinv npx drizzle-kit generate
 sudo -u serverinv npx tsx src/db/migrate.ts
 
 # Restart backend
-sudo systemctl restart serverinv
+sudo systemctl start serverinv
 ```
 
 ---
 
-## Backup Server Setup
+## Backup and Restore
 
-ServerInv supports database backup/restore via SFTP from within the app.
+ServerInv supports database backup and restore directly through the browser.
 
-### On the backup server
-
-```bash
-# Create a backup user
-sudo useradd --system --create-home --shell /bin/bash serverinv-backup
-sudo mkdir -p /home/serverinv-backup/backups
-sudo chown serverinv-backup:serverinv-backup /home/serverinv-backup/backups
-```
-
-For key-based authentication (recommended):
-
-```bash
-# On the ServerInv server, generate a key pair
-sudo -u serverinv ssh-keygen -t ed25519 -f /home/serverinv/.ssh/id_ed25519 -N ""
-
-# Copy public key to backup server
-sudo -u serverinv ssh-copy-id serverinv-backup@backup-server-ip
-```
-
-### Configure in the app
+### Creating a Backup
 
 1. Log in as admin
 2. Navigate to **Backup** in the sidebar
-3. Fill in the SFTP configuration:
-   - **Host**: backup server IP or hostname
-   - **Port**: 22 (default)
-   - **Username**: `serverinv-backup`
-   - **Password** or **Private Key**: authentication credentials
-   - **Remote Path**: `/home/serverinv-backup/backups`
-4. Click **Save**
+3. Click **Download Backup**
+4. A `.sql` database dump file will be downloaded to your browser
+5. Store the file in a secure location
 
-### Creating and restoring backups
+### Restoring a Backup
 
-- Click **Create Backup** to dump the database and upload to the SFTP server
-- The **Remote Backups** section lists available backups with restore buttons
-- Restoring replaces the current database with the selected backup
+1. Navigate to **Backup** in the sidebar
+2. Click **Upload & Restore** and select a `.sql` backup file
+3. Confirm the warning that all existing data will be replaced
+4. After restore completes, refresh the page
+
+### Offsite Backup Strategy
+
+For automated offsite backups, set up a cron job on the server:
+
+```bash
+# Example: daily backup to a local directory
+sudo -u serverinv crontab -e
+
+# Add this line for daily backups at 2 AM:
+0 2 * * * pg_dump "$(grep DATABASE_URL /opt/serverinv/server/.env | cut -d= -f2-)" > /home/serverinv/backups/serverinv-$(date +\%Y\%m\%d).sql
+
+# Optionally copy to a remote server via scp/rsync:
+0 3 * * * scp /home/serverinv/backups/serverinv-$(date +\%Y\%m\%d).sql user@backup-server:/backups/
+```
 
 ---
 
