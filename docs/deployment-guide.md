@@ -248,7 +248,14 @@ This allows SSH (22), HTTP (80), and HTTPS (443).
 
 ### Automated Update (Recommended)
 
-An update script is provided at `deploy/update.sh`:
+First, pull the latest code:
+
+```bash
+cd /opt/serverinv
+sudo -u serverinv git pull
+```
+
+Then run the update script:
 
 ```bash
 sudo bash /opt/serverinv/deploy/update.sh
