@@ -1,0 +1,203 @@
+# ServerInv Database Schema
+
+PostgreSQL 16. All tables use auto-incrementing `serial` primary keys.
+
+## Entity Relationship Diagram
+
+```
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│ server_types │     │  providers   │     │  locations   │
+│──────────────│     │──────────────│     │──────────────│
+│ id (PK)      │     │ id (PK)      │     │ id (PK)      │
+│ name         │     │ name         │     │ city         │
+└──────┬───────┘     │ site_url     │     │ country      │
+       │             │ control_     │     │ datacenter   │
+       │             │  panel_url   │     └──────┬───────┘
+       │             └──────┬───────┘            │
+       │                    │                    │
+       ▼                    ▼                    ▼
+┌─────────────────────────────────────────────────────────┐
+│                        servers                          │
+│─────────────────────────────────────────────────────────│
+│ id (PK)                                                 │
+│ name                                                    │
+│ url, ip                                                 │
+│ server_type_id (FK) ─────────────────────► server_types │
+│ provider_id (FK) ────────────────────────► providers    │
+│ location_id (FK) ────────────────────────► locations    │
+│ price_monthly, price_yearly                             │
+│ currency_id (FK) ────────────────────────► currencies   │
+│ renewal_date                                            │
+│ ram, disk_size, disk_type                               │
+│ cpu_type_id (FK) ────────────────────────► cpu_types    │
+│ os_id (FK) ──────────────────────────────► operating_   │
+│ notes                                        systems    │
+└──────────────────────────┬──────────────────────────────┘
+                           │ CASCADE DELETE
+                           ▼
+                ┌─────────────────────┐
+                │  server_websites    │
+                │─────────────────────│
+                │ id (PK)             │
+                │ server_id (FK)      │
+                │ domain              │
+                │ application         │
+                │ notes               │
+                └─────────────────────┘
+
+┌──────────────┐  ┌──────────────────┐  ┌──────────────────┐
+│ currencies   │  │   cpu_types      │  │operating_systems │
+│──────────────│  │──────────────────│  │──────────────────│
+│ id (PK)      │  │ id (PK)          │  │ id (PK)          │
+│ code (UNIQUE)│  │ type             │  │ name             │
+│ name         │  │ cores            │  │ version          │
+│ symbol       │  │ speed            │  │ variant          │
+└──────────────┘  └──────────────────┘  └──────────────────┘
+
+┌──────────────┐  ┌──────────────────┐
+│    users     │  │  backup_config   │
+│──────────────│  │──────────────────│
+│ id (PK)      │  │ id (PK)          │
+│ username     │  │ host             │
+│  (UNIQUE)    │  │ port             │
+│ password     │  │ username         │
+│ role         │  │ password         │
+│ created_at   │  │ private_key      │
+│ updated_at   │  │ remote_path      │
+└──────────────┘  └──────────────────┘
+```
+
+## Table Definitions
+
+### servers
+
+The core entity. All foreign key columns are nullable.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | serial | PK | Auto-increment ID |
+| name | varchar(200) | NOT NULL | Server name/hostname |
+| url | varchar(500) | | Server URL |
+| ip | varchar(45) | | IPv4 or IPv6 address |
+| server_type_id | integer | FK → server_types | VPS, Dedicated, etc. |
+| provider_id | integer | FK → providers | Hosting provider |
+| location_id | integer | FK → locations | Physical location |
+| price_monthly | decimal(10,2) | | Monthly cost |
+| price_yearly | decimal(10,2) | | Yearly cost |
+| currency_id | integer | FK → currencies | Pricing currency |
+| renewal_date | date | | Next renewal date |
+| ram | integer | | RAM in MB |
+| disk_size | integer | | Disk size in GB |
+| disk_type | varchar(10) | | SSD, HDD, or NVMe |
+| cpu_type_id | integer | FK → cpu_types | CPU specification |
+| os_id | integer | FK → operating_systems | Operating system |
+| notes | varchar(2000) | | Free-text notes |
+
+### server_websites
+
+Websites/applications hosted on a server. Cascade-deleted when parent server is removed.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | serial | PK | |
+| server_id | integer | FK → servers, NOT NULL, CASCADE | Parent server |
+| domain | varchar(500) | NOT NULL | Domain name |
+| application | varchar(200) | | Application name (WordPress, etc.) |
+| notes | varchar(1000) | | Notes |
+
+### providers
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | serial | PK | |
+| name | varchar(200) | NOT NULL | Provider company name |
+| site_url | varchar(500) | | Provider website URL |
+| control_panel_url | varchar(500) | | Control panel login URL |
+
+### locations
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | serial | PK | |
+| city | varchar(100) | NOT NULL | City name |
+| country | varchar(100) | NOT NULL | Country name |
+| datacenter | varchar(200) | | Datacenter facility name |
+
+### currencies
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | serial | PK | |
+| code | varchar(10) | NOT NULL, UNIQUE | ISO code (USD, EUR, GBP) |
+| name | varchar(100) | NOT NULL | Full name |
+| symbol | varchar(10) | NOT NULL | Display symbol ($, etc.) |
+
+### cpu_types
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | serial | PK | |
+| type | varchar(200) | NOT NULL | CPU model name |
+| cores | integer | NOT NULL | Number of cores |
+| speed | decimal(5,2) | NOT NULL | Clock speed in GHz |
+
+### operating_systems
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | serial | PK | |
+| name | varchar(100) | NOT NULL | OS name (Ubuntu, Debian, etc.) |
+| version | varchar(50) | NOT NULL | Version number |
+| variant | varchar(50) | NOT NULL, DEFAULT 'server' | server or desktop |
+
+### server_types
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | serial | PK | |
+| name | varchar(100) | NOT NULL, UNIQUE | VPS, Dedicated, Shared |
+
+### users
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | serial | PK | |
+| username | varchar(100) | NOT NULL, UNIQUE | Login username |
+| password | varchar(255) | NOT NULL | bcrypt hash |
+| role | varchar(20) | NOT NULL, DEFAULT 'viewer' | admin or viewer |
+| created_at | timestamp | NOT NULL, DEFAULT now() | |
+| updated_at | timestamp | NOT NULL, DEFAULT now() | |
+
+### backup_config
+
+Single-row table storing SFTP backup credentials.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | serial | PK | |
+| host | varchar(500) | NOT NULL | SFTP hostname |
+| port | integer | NOT NULL, DEFAULT 22 | SFTP port |
+| username | varchar(200) | NOT NULL | SFTP username |
+| password | varchar(500) | | SFTP password |
+| private_key | varchar(5000) | | SSH private key (PEM) |
+| remote_path | varchar(500) | NOT NULL | Remote directory path |
+
+## Migrations
+
+Migrations are managed by Drizzle Kit and stored as SQL files in `server/drizzle/`.
+
+```bash
+# Generate migration from schema changes
+npm run db:generate
+
+# Apply pending migrations
+npm run db:migrate
+```
+
+## Seed Data
+
+Running `npm run db:seed` creates:
+- Admin user: `admin` / `admin` (bcrypt hashed)
+- Currencies: USD, EUR, GBP
+- Server types: VPS, Dedicated, Shared
+- Operating systems: Ubuntu 24.04, Ubuntu 22.04, Debian 12, Debian 11, CentOS 9, AlmaLinux 9
