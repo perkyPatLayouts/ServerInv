@@ -66,7 +66,6 @@ sudo -u $APP_USER npm run build
 
 echo "==> Running database migrations and seed"
 cd $APP_DIR/server
-sudo -u $APP_USER npx drizzle-kit generate
 sudo -u $APP_USER npx tsx src/db/migrate.ts
 sudo -u $APP_USER npx tsx src/db/seed.ts
 

@@ -29,7 +29,6 @@ sudo -u "$APP_USER" npm run build
 
 echo "==> Running database migrations"
 cd "$APP_DIR/server"
-sudo -u "$APP_USER" npx drizzle-kit generate
 sudo -u "$APP_USER" npx tsx src/db/migrate.ts
 
 echo "==> Restarting ServerInv service"
