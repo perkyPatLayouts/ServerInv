@@ -110,16 +110,21 @@ sudo -u serverinv npm run build
 
 ```bash
 cd /opt/serverinv/server
-sudo -u serverinv npx drizzle-kit generate
 sudo -u serverinv npx tsx src/db/migrate.ts
 sudo -u serverinv npx tsx src/db/seed.ts
 ```
+
+> **Note:** Do NOT run `drizzle-kit generate` on the server. Migrations are generated
+> locally during development and committed to the repository. The server only runs
+> `db:migrate` to apply them.
 
 This creates the database tables and seeds:
 - Admin user: `admin` / `admin`
 - Currencies: USD, EUR, GBP
 - Server types: VPS, Dedicated, Shared
 - Operating systems: Ubuntu 24.04, Ubuntu 22.04, Debian 12, Debian 11, CentOS 9, AlmaLinux 9
+- Billing periods: Hourly, Monthly, Quarterly, Yearly, 2 Yearly, 3 Yearly
+- Payment methods: PayPal, Credit Card, Cash, Digital Currency
 
 ### 9. Configure systemd Service
 
@@ -287,9 +292,8 @@ sudo -u serverinv npm install
 cd /opt/serverinv/client
 sudo -u serverinv npm run build
 
-# Run any new migrations
+# Run any new migrations (do NOT run drizzle-kit generate on server)
 cd /opt/serverinv/server
-sudo -u serverinv npx drizzle-kit generate
 sudo -u serverinv npx tsx src/db/migrate.ts
 
 # Restart backend
