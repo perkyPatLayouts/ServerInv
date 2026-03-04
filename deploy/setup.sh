@@ -3,6 +3,7 @@ set -euo pipefail
 
 # ServerInv deployment script for Ubuntu/Debian
 # Run as root or with sudo
+# Usage: sudo bash setup.sh [git-repo-url]
 
 APP_USER="serverinv"
 APP_DIR="/opt/serverinv"
@@ -11,9 +12,16 @@ DB_USER="serverinv"
 DB_PASS="$(openssl rand -hex 16)"
 JWT_SECRET="$(openssl rand -hex 32)"
 
+# Prompt for domain name
+read -rp "Enter the application domain name (e.g. serverinv.example.com): " APP_DOMAIN
+if [ -z "$APP_DOMAIN" ]; then
+  echo "Error: domain name is required."
+  exit 1
+fi
+
 echo "==> Installing system packages"
 apt-get update
-apt-get install -y curl nginx postgresql postgresql-contrib
+apt-get install -y curl nginx postgresql postgresql-contrib certbot python3-certbot-nginx
 
 echo "==> Installing Node.js 20.x"
 if ! command -v node &> /dev/null; then
@@ -75,17 +83,45 @@ systemctl daemon-reload
 systemctl enable serverinv
 systemctl start serverinv
 
-echo "==> Setting up nginx"
-cp $APP_DIR/deploy/serverinv.nginx /etc/nginx/sites-available/serverinv
+echo "==> Setting up nginx (HTTP for $APP_DOMAIN)"
+cat > /etc/nginx/sites-available/serverinv << NGINX
+server {
+    listen 80;
+    server_name $APP_DOMAIN;
+
+    root /opt/serverinv/client/dist;
+    index index.html;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location / {
+        try_files \$uri \$uri/ /index.html;
+    }
+}
+NGINX
 ln -sf /etc/nginx/sites-available/serverinv /etc/nginx/sites-enabled/serverinv
 rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx
 
+echo "==> Obtaining SSL certificate for $APP_DOMAIN"
+certbot --nginx -d "$APP_DOMAIN" --non-interactive --agree-tos --redirect --register-unsafely-without-email || {
+  echo "    WARNING: SSL certificate request failed."
+  echo "    Make sure DNS for $APP_DOMAIN points to this server."
+  echo "    You can retry manually: certbot --nginx -d $APP_DOMAIN"
+}
+
 echo ""
 echo "==> Deployment complete!"
-echo "    App URL: http://$(hostname -I | awk '{print $1}')"
+echo "    Domain:   $APP_DOMAIN"
+echo "    App URL:  https://$APP_DOMAIN"
 echo "    Default login: admin / admin"
 echo "    Database password: $DB_PASS"
 echo "    JWT secret: $JWT_SECRET"
 echo ""
-echo "    For HTTPS, run: certbot --nginx -d yourdomain.com"
+echo "    SSL auto-renewal is handled by certbot's systemd timer."
