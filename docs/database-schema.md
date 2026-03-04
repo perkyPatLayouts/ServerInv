@@ -10,9 +10,9 @@ PostgreSQL 16. All tables use auto-incrementing `serial` primary keys.
 │──────────────│     │──────────────│     │──────────────│
 │ id (PK)      │     │ id (PK)      │     │ id (PK)      │
 │ name         │     │ name         │     │ city         │
-└──────┬───────┘     │ site_url     │     │ country      │
-       │             │ control_     │     │ datacenter   │
-       │             │  panel_url   │     └──────┬───────┘
+│ virtualizat- │     │ site_url     │     │ country      │
+│  ion_type    │     │ control_     │     │ datacenter   │
+└──────┬───────┘     │  panel_url   │     └──────┬───────┘
        │             └──────┬───────┘            │
        │                    │                    │
        ▼                    ▼                    ▼
@@ -25,9 +25,12 @@ PostgreSQL 16. All tables use auto-incrementing `serial` primary keys.
 │ server_type_id (FK) ─────────────────────► server_types │
 │ provider_id (FK) ────────────────────────► providers    │
 │ location_id (FK) ────────────────────────► locations    │
-│ price_monthly, price_yearly                             │
-│ currency_id (FK) ────────────────────────► currencies   │
-│ renewal_date                                            │
+│ price                                                   │
+│ billing_period_id (FK) ──────────────────► billing_     │
+│ payment_method_id (FK) ──────────────────►  periods     │
+│ currency_id (FK) ────────────────────────► payment_     │
+│ recurring, auto_renew                       methods     │
+│ renewal_date                              currencies    │
 │ ram, disk_size, disk_type                               │
 │ cpu_type_id (FK) ────────────────────────► cpu_types    │
 │ os_id (FK) ──────────────────────────────► operating_   │
@@ -53,6 +56,13 @@ PostgreSQL 16. All tables use auto-incrementing `serial` primary keys.
 │ name         │  │ cores            │  │ version          │
 │ symbol       │  │ speed            │  │ variant          │
 └──────────────┘  └──────────────────┘  └──────────────────┘
+
+┌──────────────────┐  ┌──────────────────┐
+│ billing_periods  │  │ payment_methods  │
+│──────────────────│  │──────────────────│
+│ id (PK)          │  │ id (PK)          │
+│ name (UNIQUE)    │  │ name (UNIQUE)    │
+└──────────────────┘  └──────────────────┘
 
 ┌──────────────┐  ┌──────────────────┐
 │    users     │  │  backup_config   │
@@ -82,16 +92,19 @@ The core entity. All foreign key columns are nullable.
 | server_type_id | integer | FK → server_types | VPS, Dedicated, etc. |
 | provider_id | integer | FK → providers | Hosting provider |
 | location_id | integer | FK → locations | Physical location |
-| price_monthly | decimal(10,2) | | Monthly cost |
-| price_yearly | decimal(10,2) | | Yearly cost |
+| price | decimal(10,2) | | Cost amount |
+| billing_period_id | integer | FK → billing_periods | Billing cycle |
+| payment_method_id | integer | FK → payment_methods | Payment method |
 | currency_id | integer | FK → currencies | Pricing currency |
+| recurring | boolean | NOT NULL, DEFAULT false | Whether cost recurs |
+| auto_renew | boolean | NOT NULL, DEFAULT false | Whether server auto-renews |
 | renewal_date | date | | Next renewal date |
 | ram | integer | | RAM in MB |
 | disk_size | integer | | Disk size in GB |
-| disk_type | varchar(10) | | SSD, HDD, or NVMe |
+| disk_type | varchar(50) | | SSD, HDD, NVMe, or custom |
 | cpu_type_id | integer | FK → cpu_types | CPU specification |
 | os_id | integer | FK → operating_systems | Operating system |
-| notes | varchar(2000) | | Free-text notes |
+| notes | varchar(32000) | | Free-text notes |
 
 ### server_websites
 
@@ -156,6 +169,21 @@ Websites/applications hosted on a server. Cascade-deleted when parent server is 
 |--------|------|-------------|-------------|
 | id | serial | PK | |
 | name | varchar(100) | NOT NULL, UNIQUE | VPS, Dedicated, Shared |
+| virtualization_type | varchar(100) | | KVM, OpenVZ, or custom value |
+
+### billing_periods
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | serial | PK | |
+| name | varchar(100) | NOT NULL, UNIQUE | Hourly, Monthly, Quarterly, Yearly, etc. |
+
+### payment_methods
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | serial | PK | |
+| name | varchar(100) | NOT NULL, UNIQUE | PayPal, Credit Card, Cash, etc. |
 
 ### users
 
@@ -201,3 +229,5 @@ Running `npm run db:seed` creates:
 - Currencies: USD, EUR, GBP
 - Server types: VPS, Dedicated, Shared
 - Operating systems: Ubuntu 24.04, Ubuntu 22.04, Debian 12, Debian 11, CentOS 9, AlmaLinux 9
+- Billing periods: Hourly, Monthly, Quarterly, Yearly, 2 Yearly, 3 Yearly
+- Payment methods: PayPal, Credit Card, Cash, Digital Currency

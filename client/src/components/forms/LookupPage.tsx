@@ -8,12 +8,17 @@ import PageHeader from "../ui/PageHeader";
 import Button from "../ui/Button";
 import Modal from "../ui/Modal";
 import ConfirmDialog from "../ui/ConfirmDialog";
+import SelectWithAddCustom from "../ui/SelectWithAddCustom";
 
 interface Field {
   name: string;
   label: string;
   type?: string;
   required?: boolean;
+  /** Preset options for a string-value select field. */
+  selectOptions?: { value: string | number; label: string }[];
+  /** When true, shows an "Add new" custom value input alongside selectOptions. */
+  allowCustom?: boolean;
 }
 
 interface Props<T extends { id: number }> {
@@ -65,7 +70,7 @@ export default function LookupPage<T extends { id: number }>({ title, hook, colu
   ], [columns, isAdmin]);
 
   const FormModal = ({ open, item, onClose }: { open: boolean; item: T | null; onClose: () => void }) => {
-    const { register, handleSubmit, reset, formState: { errors } } = useForm({ defaultValues: getDefaults(item) });
+    const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm({ defaultValues: getDefaults(item) });
     const onSubmit = async (data: any) => {
       const payload = { ...data };
       for (const f of fields) {
@@ -81,15 +86,28 @@ export default function LookupPage<T extends { id: number }>({ title, hook, colu
       <Modal open={open} onClose={onClose} title={item ? `Edit ${title.replace(/s$/, "")}` : `Add ${title.replace(/s$/, "")}`}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {fields.map((f) => (
-            <div key={f.name} className="space-y-1">
-              <label className="block text-sm font-medium text-text-primary">{f.label}</label>
-              <input
-                {...register(f.name, f.required ? { required: "Required" } : {})}
-                type={f.type || "text"}
-                step={f.type === "number" ? "any" : undefined}
-                className="w-full rounded border border-border bg-surface text-text-primary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-              />
-              {(errors as any)[f.name] && <p className="text-xs text-danger">{(errors as any)[f.name]?.message as string}</p>}
+            <div key={f.name}>
+              {f.selectOptions ? (
+                <SelectWithAddCustom
+                  label={f.label}
+                  {...register(f.name, f.required ? { required: "Required" } : {})}
+                  placeholder="Select..."
+                  options={f.selectOptions}
+                  onAddCustom={(val) => setValue(f.name, val)}
+                  error={(errors as any)[f.name]?.message as string}
+                />
+              ) : (
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-text-primary">{f.label}</label>
+                  <input
+                    {...register(f.name, f.required ? { required: "Required" } : {})}
+                    type={f.type || "text"}
+                    step={f.type === "number" ? "any" : undefined}
+                    className="w-full rounded border border-border bg-surface text-text-primary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                  />
+                  {(errors as any)[f.name] && <p className="text-xs text-danger">{(errors as any)[f.name]?.message as string}</p>}
+                </div>
+              )}
             </div>
           ))}
           <div className="flex justify-end gap-2 pt-2">

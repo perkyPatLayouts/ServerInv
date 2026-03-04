@@ -6,6 +6,7 @@ import Modal from "../ui/Modal";
 import Input from "../ui/Input";
 import Select from "../ui/Select";
 import SelectWithAdd from "../ui/SelectWithAdd";
+import SelectWithAddCustom from "../ui/SelectWithAddCustom";
 import Button from "../ui/Button";
 
 interface Props {
@@ -184,11 +185,12 @@ export default function ServerFormModal({ open, server, onClose }: Props) {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Input label="RAM (MB)" {...register("ram")} type="number" />
           <Input label="Disk Size (GB)" {...register("diskSize")} type="number" />
-          <Select
+          <SelectWithAddCustom
             label="Disk Type"
             {...register("diskType")}
             placeholder="Select..."
             options={[{ value: "SSD", label: "SSD" }, { value: "HDD", label: "HDD" }, { value: "NVMe", label: "NVMe" }]}
+            onAddCustom={(val) => setValue("diskType", val)}
           />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -264,7 +266,20 @@ function InlineServerTypeForm({ onSave, onCancel, createServerType }: { onSave: 
   return (
     <>
       <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-      <Input label="Virtualization Type" value={virtualizationType} onChange={(e) => setVirtualizationType(e.target.value)} />
+      <SelectWithAddCustom
+        label="Virtualization Type"
+        value={virtualizationType}
+        onChange={(e) => setVirtualizationType(e.target.value)}
+        placeholder="None"
+        options={[
+          { value: "KVM", label: "KVM" },
+          { value: "OpenVZ 9", label: "OpenVZ 9" },
+          { value: "OpenVZ 8", label: "OpenVZ 8" },
+          { value: "OpenVZ 7", label: "OpenVZ 7" },
+          { value: "OpenVZ 6", label: "OpenVZ 6" },
+        ]}
+        onAddCustom={(val) => setVirtualizationType(val)}
+      />
       <div className="flex gap-2">
         <Button type="button" size="sm" onClick={handleSubmit} disabled={createServerType.isPending || !name.trim()}>
           {createServerType.isPending ? "Adding..." : "Add Server Type"}

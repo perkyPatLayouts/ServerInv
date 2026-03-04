@@ -28,11 +28,11 @@ The core entity is a **Server** with these related entities (each with full CRUD
 - **Currencies** (USD, EUR, GBP)
 - **CPU Types** (type, cores, speed)
 - **Operating Systems** (Debian/Ubuntu, version, server/desktop)
-- **Server Types** (VPS, Dedicated, Shared)
+- **Server Types** (VPS, Dedicated, Shared — with optional virtualization type: KVM, OpenVZ, or custom)
 - **Billing Periods** (Hourly, Monthly, Quarterly, Yearly, 2 Yearly, 3 Yearly)
 - **Payment Methods** (PayPal, Credit Card, Cash, Digital Currency)
 
-Server fields: URL, IP, server type, provider, price (single amount + billing period + currency + payment method + recurring flag + auto-renew flag + renewal date), location, RAM, disk (SSD/HDD/NVMe + size), CPU, OS, and associated websites/domains/applications.
+Server fields: URL, IP, server type, provider, price (single amount + billing period + currency + payment method + recurring flag + auto-renew flag + renewal date), location, RAM, disk (SSD/HDD/NVMe or custom via "Add New" + size), CPU, OS, notes (up to 32,000 chars), and associated websites/domains/applications.
 
 ### Pages
 

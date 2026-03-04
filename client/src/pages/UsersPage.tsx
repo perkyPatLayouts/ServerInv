@@ -43,6 +43,28 @@ export default function UsersPage() {
               ),
             },
           ]}
+          defaultSort={[{ id: "username", desc: false }]}
+          renderCard={(row) => (
+            <div className="bg-surface border border-border rounded-lg p-4">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
+                    <span className="text-sm font-semibold text-accent">{row.original.username.charAt(0).toUpperCase()}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-text-primary truncate">{row.original.username}</h3>
+                    <span className={`inline-block text-xs px-2 py-0.5 rounded-full mt-0.5 ${row.original.role === "admin" ? "bg-accent/10 text-accent" : "bg-border text-text-secondary"}`}>
+                      {row.original.role === "admin" ? "Administrator" : "Viewer"}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <Button size="sm" variant="ghost" onClick={() => setEditUser(row.original)}>Edit</Button>
+                  <Button size="sm" variant="ghost" className="text-danger" onClick={() => setDeleteId(row.original.id)}>Del</Button>
+                </div>
+              </div>
+            </div>
+          )}
         />
       )}
 

@@ -26,7 +26,19 @@ export default function ServerTypesPage() {
       ]}
       fields={[
         { name: "name", label: "Name", required: true },
-        { name: "virtualizationType", label: "Virtualization Type" },
+        {
+          name: "virtualizationType",
+          label: "Virtualization Type",
+          selectOptions: [
+            { value: "", label: "None" },
+            { value: "KVM", label: "KVM" },
+            { value: "OpenVZ 9", label: "OpenVZ 9" },
+            { value: "OpenVZ 8", label: "OpenVZ 8" },
+            { value: "OpenVZ 7", label: "OpenVZ 7" },
+            { value: "OpenVZ 6", label: "OpenVZ 6" },
+          ],
+          allowCustom: true,
+        },
       ]}
       getDefaults={(item) => item ? { name: item.name, virtualizationType: item.virtualizationType || "" } : { name: "", virtualizationType: "" }}
       getInventoryLink={(item) => `/?serverTypeId=${item.id}`}
