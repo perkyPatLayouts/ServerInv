@@ -29,6 +29,7 @@ export default function DatacentersPage() {
       ]}
       getDefaults={(item) => item ? { datacenter: item.datacenter || "", city: item.city, country: item.country } : { datacenter: "", city: "", country: "" }}
       getInventoryLink={(item) => `/?locationId=${item.id}`}
+      defaultSort={[{ id: "datacenter", desc: false }]}
     />
   );
 }

@@ -146,7 +146,15 @@ export default function InventoryPage() {
 
   const columns = useMemo<ColumnDef<Server, any>[]>(() => [
     { accessorKey: "name", header: "Name" },
-    { accessorKey: "serverType", header: "Type" },
+    {
+      accessorKey: "serverType",
+      header: "Type",
+      cell: ({ row }) => {
+        const s = row.original;
+        if (!s.serverType) return "—";
+        return s.serverTypeVirtualization ? `${s.serverType} (${s.serverTypeVirtualization})` : s.serverType;
+      },
+    },
     {
       accessorKey: "providerName",
       header: "Provider",
@@ -291,6 +299,7 @@ export default function InventoryPage() {
         <DataTable
           data={filteredData}
           columns={columns}
+          defaultSort={[{ id: "name", desc: false }]}
           renderCard={(row) => {
             const s = row.original;
             return (
@@ -299,7 +308,9 @@ export default function InventoryPage() {
                   <div>
                     <h3 className="font-semibold text-text-primary">{s.name}</h3>
                     {s.serverType && (
-                      <span className="text-xs bg-surface-hover text-text-secondary px-2 py-0.5 rounded">{s.serverType}</span>
+                      <span className="text-xs bg-surface-hover text-text-secondary px-2 py-0.5 rounded">
+                        {s.serverType}{s.serverTypeVirtualization ? ` (${s.serverTypeVirtualization})` : ""}
+                      </span>
                     )}
                   </div>
                   <div className="flex gap-1 shrink-0">

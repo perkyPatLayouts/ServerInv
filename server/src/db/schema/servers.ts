@@ -28,5 +28,5 @@ export const servers = pgTable("servers", {
   diskType: varchar("disk_type", { length: 10 }),
   cpuTypeId: integer("cpu_type_id").references(() => cpuTypes.id),
   osId: integer("os_id").references(() => operatingSystems.id),
-  notes: varchar("notes", { length: 2000 }),
+  notes: varchar("notes", { length: 32000 }),
 });

@@ -14,6 +14,7 @@ export default function PaymentMethodsPage() {
         { name: "name", label: "Name", required: true },
       ]}
       getDefaults={(item) => item ? { name: item.name } : { name: "" }}
+      defaultSort={[{ id: "name", desc: false }]}
     />
   );
 }

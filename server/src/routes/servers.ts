@@ -36,7 +36,7 @@ const serverSchema = z.object({
   diskType: z.string().max(10).nullable().optional(),
   cpuTypeId: z.number().int().nullable().optional(),
   osId: z.number().int().nullable().optional(),
-  notes: z.string().max(2000).nullable().optional(),
+  notes: z.string().max(32000).nullable().optional(),
 });
 
 /** GET /api/servers — list all with joined relations */
@@ -64,6 +64,7 @@ router.get("/", async (_req: Request, res: Response) => {
       osId: servers.osId,
       notes: servers.notes,
       serverType: serverTypes.name,
+      serverTypeVirtualization: serverTypes.virtualizationType,
       providerName: providers.name,
       providerSiteUrl: providers.siteUrl,
       providerControlPanelUrl: providers.controlPanelUrl,

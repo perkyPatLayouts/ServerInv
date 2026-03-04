@@ -16,16 +16,18 @@ interface Props {
 
 export default function ServerFormModal({ open, server, onClose }: Props) {
   const { create, update } = useServers();
-  const currencies = useCurrencies().list;
+  const { list: currenciesList, create: createCurrency } = useCurrencies();
   const { list: locationsList, create: createLocation } = useLocations();
   const { list: providersList, create: createProvider } = useProviders();
-  const cpuTypes = useCpuTypes().list;
+  const { list: cpuTypesList, create: createCpu } = useCpuTypes();
   const { list: osList, create: createOs } = useOperatingSystems();
-  const serverTypes = useServerTypes().list;
-  const billingPeriods = useBillingPeriods().list;
-  const paymentMethods = usePaymentMethods().list;
+  const { list: serverTypesList, create: createServerType } = useServerTypes();
+  const { list: billingPeriodsList, create: createBillingPeriod } = useBillingPeriods();
+  const { list: paymentMethodsList, create: createPaymentMethod } = usePaymentMethods();
 
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm({ defaultValues: getDefaults(server) });
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm({ defaultValues: getDefaults(server) });
+
+  const notesValue = watch("notes");
 
   useEffect(() => { reset(getDefaults(server)); }, [server, open]);
 
@@ -64,11 +66,21 @@ export default function ServerFormModal({ open, server, onClose }: Props) {
           <Input label="IP Address" {...register("ip")} />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Select
+          <SelectWithAdd
             label="Server Type"
             {...register("serverTypeId")}
             placeholder="Select..."
-            options={(serverTypes.data || []).map((t) => ({ value: t.id, label: t.name }))}
+            options={(serverTypesList.data || []).map((t) => ({ value: t.id, label: t.name }))}
+            renderAdd={(onDone) => (
+              <InlineServerTypeForm
+                onSave={async (created) => {
+                  setValue("serverTypeId", String(created.id));
+                  onDone();
+                }}
+                onCancel={onDone}
+                createServerType={createServerType}
+              />
+            )}
           />
           <SelectWithAdd
             label="Provider"
@@ -105,25 +117,57 @@ export default function ServerFormModal({ open, server, onClose }: Props) {
         />
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Input label="Price" {...register("price")} type="number" step="0.01" />
-          <Select
+          <SelectWithAdd
             label="Billing Period"
             {...register("billingPeriodId")}
             placeholder="Select..."
-            options={(billingPeriods.data || []).map((b) => ({ value: b.id, label: b.name }))}
+            options={(billingPeriodsList.data || []).map((b) => ({ value: b.id, label: b.name }))}
+            renderAdd={(onDone) => (
+              <InlineSimpleForm
+                entityName="Billing Period"
+                onSave={async (created) => {
+                  setValue("billingPeriodId", String(created.id));
+                  onDone();
+                }}
+                onCancel={onDone}
+                createMutation={createBillingPeriod}
+              />
+            )}
           />
-          <Select
+          <SelectWithAdd
             label="Currency"
             {...register("currencyId")}
             placeholder="Select..."
-            options={(currencies.data || []).map((c) => ({ value: c.id, label: `${c.code} (${c.symbol})` }))}
+            options={(currenciesList.data || []).map((c) => ({ value: c.id, label: `${c.code} (${c.symbol})` }))}
+            renderAdd={(onDone) => (
+              <InlineCurrencyForm
+                onSave={async (created) => {
+                  setValue("currencyId", String(created.id));
+                  onDone();
+                }}
+                onCancel={onDone}
+                createCurrency={createCurrency}
+              />
+            )}
           />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Select
+          <SelectWithAdd
             label="Payment Method"
             {...register("paymentMethodId")}
             placeholder="Select..."
-            options={(paymentMethods.data || []).map((p) => ({ value: p.id, label: p.name }))}
+            options={(paymentMethodsList.data || []).map((p) => ({ value: p.id, label: p.name }))}
+            renderAdd={(onDone) => (
+              <InlineSimpleForm
+                entityName="Payment Method"
+                onSave={async (created) => {
+                  setValue("paymentMethodId", String(created.id));
+                  onDone();
+                }}
+                onCancel={onDone}
+                createMutation={createPaymentMethod}
+              />
+            )}
           />
           <div className="flex items-center gap-4 pt-6">
             <label className="flex items-center gap-2 text-sm text-text-primary cursor-pointer">
@@ -148,11 +192,21 @@ export default function ServerFormModal({ open, server, onClose }: Props) {
           />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Select
+          <SelectWithAdd
             label="CPU"
             {...register("cpuTypeId")}
             placeholder="Select..."
-            options={(cpuTypes.data || []).map((c) => ({ value: c.id, label: `${c.type} (${c.cores}c @ ${c.speed}GHz)` }))}
+            options={(cpuTypesList.data || []).map((c) => ({ value: c.id, label: `${c.type} (${c.cores}c @ ${c.speed}GHz)` }))}
+            renderAdd={(onDone) => (
+              <InlineCpuForm
+                onSave={async (created) => {
+                  setValue("cpuTypeId", String(created.id));
+                  onDone();
+                }}
+                onCancel={onDone}
+                createCpu={createCpu}
+              />
+            )}
           />
           <SelectWithAdd
             label="OS"
@@ -173,7 +227,17 @@ export default function ServerFormModal({ open, server, onClose }: Props) {
         </div>
         <div>
           <label className="block text-sm font-medium text-text-primary mb-1">Notes</label>
-          <textarea {...register("notes")} className="w-full rounded border border-border bg-surface text-text-primary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent" rows={3} />
+          <textarea
+            {...register("notes", { maxLength: { value: 32000, message: "Notes cannot exceed 32,000 characters" } })}
+            className="w-full rounded border border-border bg-surface text-text-primary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+            rows={3}
+          />
+          <div className="flex justify-between mt-1">
+            <span className="text-xs text-danger">{errors.notes?.message as string}</span>
+            <span className={`text-xs ${(notesValue?.length || 0) > 32000 ? "text-danger" : "text-text-secondary"}`}>
+              {notesValue?.length || 0} / 32,000
+            </span>
+          </div>
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="secondary" type="button" onClick={onClose}>Cancel</Button>
@@ -183,6 +247,31 @@ export default function ServerFormModal({ open, server, onClose }: Props) {
         </div>
       </form>
     </Modal>
+  );
+}
+
+/** Inline form to create a new Server Type. */
+function InlineServerTypeForm({ onSave, onCancel, createServerType }: { onSave: (t: any) => void; onCancel: () => void; createServerType: any }) {
+  const [name, setName] = useState("");
+  const [virtualizationType, setVirtualizationType] = useState("");
+
+  const handleSubmit = async () => {
+    if (!name.trim()) return;
+    const result = await createServerType.mutateAsync({ name, virtualizationType: virtualizationType || null });
+    onSave(result);
+  };
+
+  return (
+    <>
+      <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+      <Input label="Virtualization Type" value={virtualizationType} onChange={(e) => setVirtualizationType(e.target.value)} />
+      <div className="flex gap-2">
+        <Button type="button" size="sm" onClick={handleSubmit} disabled={createServerType.isPending || !name.trim()}>
+          {createServerType.isPending ? "Adding..." : "Add Server Type"}
+        </Button>
+        <Button type="button" size="sm" variant="secondary" onClick={onCancel}>Cancel</Button>
+      </div>
+    </>
   );
 }
 
@@ -235,6 +324,87 @@ function InlineLocationForm({ onSave, onCancel, createLocation }: { onSave: (l: 
       <div className="flex gap-2">
         <Button type="button" size="sm" onClick={handleSubmit} disabled={createLocation.isPending || !city.trim() || !country.trim()}>
           {createLocation.isPending ? "Adding..." : "Add Location"}
+        </Button>
+        <Button type="button" size="sm" variant="secondary" onClick={onCancel}>Cancel</Button>
+      </div>
+    </>
+  );
+}
+
+/** Reusable inline form for entities with just a name field (BillingPeriod, PaymentMethod). */
+function InlineSimpleForm({ entityName, onSave, onCancel, createMutation }: { entityName: string; onSave: (item: any) => void; onCancel: () => void; createMutation: any }) {
+  const [name, setName] = useState("");
+
+  const handleSubmit = async () => {
+    if (!name.trim()) return;
+    const result = await createMutation.mutateAsync({ name });
+    onSave(result);
+  };
+
+  return (
+    <>
+      <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+      <div className="flex gap-2">
+        <Button type="button" size="sm" onClick={handleSubmit} disabled={createMutation.isPending || !name.trim()}>
+          {createMutation.isPending ? "Adding..." : `Add ${entityName}`}
+        </Button>
+        <Button type="button" size="sm" variant="secondary" onClick={onCancel}>Cancel</Button>
+      </div>
+    </>
+  );
+}
+
+/** Inline form to create a new Currency. */
+function InlineCurrencyForm({ onSave, onCancel, createCurrency }: { onSave: (c: any) => void; onCancel: () => void; createCurrency: any }) {
+  const [code, setCode] = useState("");
+  const [name, setName] = useState("");
+  const [symbol, setSymbol] = useState("");
+
+  const handleSubmit = async () => {
+    if (!code.trim() || !name.trim() || !symbol.trim()) return;
+    const result = await createCurrency.mutateAsync({ code, name, symbol });
+    onSave(result);
+  };
+
+  return (
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Input label="Code" value={code} onChange={(e) => setCode(e.target.value)} autoFocus />
+        <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} />
+        <Input label="Symbol" value={symbol} onChange={(e) => setSymbol(e.target.value)} />
+      </div>
+      <div className="flex gap-2">
+        <Button type="button" size="sm" onClick={handleSubmit} disabled={createCurrency.isPending || !code.trim() || !name.trim() || !symbol.trim()}>
+          {createCurrency.isPending ? "Adding..." : "Add Currency"}
+        </Button>
+        <Button type="button" size="sm" variant="secondary" onClick={onCancel}>Cancel</Button>
+      </div>
+    </>
+  );
+}
+
+/** Inline form to create a new CPU Type. */
+function InlineCpuForm({ onSave, onCancel, createCpu }: { onSave: (c: any) => void; onCancel: () => void; createCpu: any }) {
+  const [type, setType] = useState("");
+  const [cores, setCores] = useState("");
+  const [speed, setSpeed] = useState("");
+
+  const handleSubmit = async () => {
+    if (!type.trim() || !cores || !speed) return;
+    const result = await createCpu.mutateAsync({ type, cores: +cores, speed });
+    onSave(result);
+  };
+
+  return (
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Input label="Type" value={type} onChange={(e) => setType(e.target.value)} autoFocus />
+        <Input label="Cores" value={cores} onChange={(e) => setCores(e.target.value)} type="number" />
+        <Input label="Speed (GHz)" value={speed} onChange={(e) => setSpeed(e.target.value)} type="number" step="0.01" />
+      </div>
+      <div className="flex gap-2">
+        <Button type="button" size="sm" onClick={handleSubmit} disabled={createCpu.isPending || !type.trim() || !cores || !speed}>
+          {createCpu.isPending ? "Adding..." : "Add CPU"}
         </Button>
         <Button type="button" size="sm" variant="secondary" onClick={onCancel}>Cancel</Button>
       </div>

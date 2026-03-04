@@ -1,6 +1,6 @@
 import { useState, useMemo, ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, SortingState } from "@tanstack/react-table";
 import { useForm } from "react-hook-form";
 import { useAuthStore } from "../../stores/authStore";
 import DataTable from "../ui/DataTable";
@@ -30,9 +30,11 @@ interface Props<T extends { id: number }> {
   extra?: ReactNode;
   /** Returns an inventory filter URL for a given item, e.g. `/?providerId=3`. */
   getInventoryLink?: (item: T) => string;
+  /** Default sort state for the data table. */
+  defaultSort?: SortingState;
 }
 
-export default function LookupPage<T extends { id: number }>({ title, hook, columns, fields, getDefaults, extra, getInventoryLink }: Props<T>) {
+export default function LookupPage<T extends { id: number }>({ title, hook, columns, fields, getDefaults, extra, getInventoryLink, defaultSort }: Props<T>) {
   const { list, create, update, remove } = hook();
   const isAdmin = useAuthStore((s) => s.isAdmin);
   const [editItem, setEditItem] = useState<T | null>(null);
@@ -110,6 +112,7 @@ export default function LookupPage<T extends { id: number }>({ title, hook, colu
         <DataTable
           data={list.data || []}
           columns={allColumns}
+          defaultSort={defaultSort}
           renderCard={(row) => {
             const item = row.original;
             const vals = fields.map((f) => ({ label: f.label, value: (item as any)[f.name] })).filter((v) => v.value != null && v.value !== "");

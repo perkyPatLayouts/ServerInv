@@ -28,6 +28,7 @@ export default function CurrenciesPage() {
       ]}
       getDefaults={(item) => item ? { code: item.code, name: item.name, symbol: item.symbol } : { code: "", name: "", symbol: "" }}
       getInventoryLink={(item) => `/?currencyId=${item.id}`}
+      defaultSort={[{ id: "code", desc: false }]}
     />
   );
 }

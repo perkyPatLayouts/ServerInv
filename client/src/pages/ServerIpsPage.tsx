@@ -52,6 +52,7 @@ export default function ServerIpsPage() {
         <DataTable
           data={list.data || []}
           columns={columns}
+          defaultSort={[{ id: "name", desc: false }]}
           renderCard={(row) => {
             const s = row.original;
             return (

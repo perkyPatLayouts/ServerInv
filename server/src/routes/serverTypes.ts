@@ -11,6 +11,7 @@ const router = Router();
 
 const serverTypeSchema = z.object({
   name: z.string().min(1).max(100),
+  virtualizationType: z.string().max(100).nullable().optional(),
 });
 
 router.get("/", async (_req: Request, res: Response) => {

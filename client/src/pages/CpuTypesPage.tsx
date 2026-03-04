@@ -28,6 +28,7 @@ export default function CpuTypesPage() {
       ]}
       getDefaults={(item) => item ? { type: item.type, cores: item.cores, speed: item.speed } : { type: "", cores: "", speed: "" }}
       getInventoryLink={(item) => `/?cpuTypeId=${item.id}`}
+      defaultSort={[{ id: "type", desc: false }]}
     />
   );
 }

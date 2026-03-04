@@ -28,6 +28,7 @@ export default function LocationsPage() {
       ]}
       getDefaults={(item) => item ? { city: item.city, country: item.country, datacenter: item.datacenter || "" } : { city: "", country: "", datacenter: "" }}
       getInventoryLink={(item) => `/?locationId=${item.id}`}
+      defaultSort={[{ id: "city", desc: false }]}
     />
   );
 }

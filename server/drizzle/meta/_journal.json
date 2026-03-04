@@ -15,6 +15,13 @@
       "when": 1772660000000,
       "tag": "0001_add_billing_payment",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772870400000,
+      "tag": "0002_notes_and_virtualization",
+      "breakpoints": true
     }
   ]
 }

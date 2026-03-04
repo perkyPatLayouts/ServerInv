@@ -6,10 +6,12 @@ interface Props<T> {
   columns: ColumnDef<T, any>[];
   /** Card renderer. When provided, cards are the default view with a toggle to table. */
   renderCard?: (row: Row<T>) => ReactNode;
+  /** Default sort state for both table and card views. */
+  defaultSort?: SortingState;
 }
 
-export default function DataTable<T>({ data, columns, renderCard }: Props<T>) {
-  const [sorting, setSorting] = useState<SortingState>([]);
+export default function DataTable<T>({ data, columns, renderCard, defaultSort }: Props<T>) {
+  const [sorting, setSorting] = useState<SortingState>(defaultSort || []);
   const [view, setView] = useState<"cards" | "table">(renderCard ? "cards" : "table");
   const table = useReactTable({
     data,
@@ -22,11 +24,47 @@ export default function DataTable<T>({ data, columns, renderCard }: Props<T>) {
 
   const rows = table.getRowModel().rows;
 
+  /** Sortable columns (exclude action/utility columns without accessorKey). */
+  const sortableColumns = table.getAllColumns().filter((c) => c.getCanSort() && c.columnDef.header && typeof c.columnDef.header === "string");
+
+  const currentSortId = sorting[0]?.id || "";
+  const currentSortDesc = sorting[0]?.desc || false;
+
   return (
     <>
       {renderCard && (
-        <div className="flex justify-end mb-3">
-          <div className="flex rounded border border-border overflow-hidden text-xs">
+        <div className="flex items-center justify-between mb-3 gap-2">
+          {/* Sort dropdown — visible in card view */}
+          {view === "cards" && sortableColumns.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <label className="text-xs text-text-secondary whitespace-nowrap">Sort by</label>
+              <select
+                value={currentSortId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  if (!id) { setSorting([]); return; }
+                  setSorting([{ id, desc: currentSortDesc }]);
+                }}
+                className="rounded border border-border bg-surface text-text-primary px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-accent"
+              >
+                <option value="">None</option>
+                {sortableColumns.map((col) => (
+                  <option key={col.id} value={col.id}>{col.columnDef.header as string}</option>
+                ))}
+              </select>
+              {currentSortId && (
+                <button
+                  onClick={() => setSorting([{ id: currentSortId, desc: !currentSortDesc }])}
+                  className="px-1.5 py-1 text-xs rounded border border-border bg-surface text-text-secondary hover:bg-surface-hover"
+                  title={currentSortDesc ? "Descending" : "Ascending"}
+                >
+                  {currentSortDesc ? "↓" : "↑"}
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="flex rounded border border-border overflow-hidden text-xs ml-auto">
             <button
               onClick={() => setView("cards")}
               className={`px-3 py-1.5 ${view === "cards" ? "bg-accent text-white" : "bg-surface text-text-secondary hover:bg-surface-hover"}`}

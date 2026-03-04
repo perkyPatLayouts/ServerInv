@@ -103,6 +103,7 @@ export default function WebsitesPage() {
         <DataTable
           data={data}
           columns={columns}
+          defaultSort={[{ id: "serverName", desc: false }]}
           renderCard={(row) => {
             const w = row.original;
             return (

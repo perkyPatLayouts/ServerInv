@@ -42,6 +42,7 @@ export default function ProvidersPage() {
       ]}
       getDefaults={(item) => item ? { name: item.name, siteUrl: item.siteUrl || "", controlPanelUrl: item.controlPanelUrl || "" } : { name: "", siteUrl: "", controlPanelUrl: "" }}
       getInventoryLink={(item) => `/?providerId=${item.id}`}
+      defaultSort={[{ id: "name", desc: false }]}
     />
   );
 }

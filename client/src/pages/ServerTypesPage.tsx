@@ -18,10 +18,19 @@ export default function ServerTypesPage() {
             </Link>
           ),
         },
+        {
+          accessorKey: "virtualizationType",
+          header: "Virtualization",
+          cell: ({ getValue }) => getValue() || "—",
+        },
       ]}
-      fields={[{ name: "name", label: "Name", required: true }]}
-      getDefaults={(item) => item ? { name: item.name } : { name: "" }}
+      fields={[
+        { name: "name", label: "Name", required: true },
+        { name: "virtualizationType", label: "Virtualization Type" },
+      ]}
+      getDefaults={(item) => item ? { name: item.name, virtualizationType: item.virtualizationType || "" } : { name: "", virtualizationType: "" }}
       getInventoryLink={(item) => `/?serverTypeId=${item.id}`}
+      defaultSort={[{ id: "name", desc: false }]}
     />
   );
 }

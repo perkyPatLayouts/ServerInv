@@ -40,9 +40,7 @@ export default function RenewalsPage() {
   const { list } = useServers();
 
   const data = useMemo(() => {
-    return (list.data || [])
-      .filter((s) => s.renewalDate)
-      .sort((a, b) => new Date(a.renewalDate!).getTime() - new Date(b.renewalDate!).getTime());
+    return (list.data || []).filter((s) => s.renewalDate);
   }, [list.data]);
 
   const columns: ColumnDef<Server, any>[] = [
@@ -95,6 +93,7 @@ export default function RenewalsPage() {
         <DataTable
           data={data}
           columns={columns}
+          defaultSort={[{ id: "renewalDate", desc: false }]}
           renderCard={(row) => {
             const s = row.original;
             const cls = urgencyClass(s.renewalDate);

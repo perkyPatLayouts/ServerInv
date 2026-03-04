@@ -21,6 +21,7 @@ export interface Server {
   notes: string | null;
   // Joined fields
   serverType?: string | null;
+  serverTypeVirtualization?: string | null;
   providerName?: string | null;
   providerSiteUrl?: string | null;
   providerControlPanelUrl?: string | null;
@@ -51,7 +52,7 @@ export interface Website {
 export interface Currency { id: number; code: string; name: string; symbol: string; }
 export interface Location { id: number; city: string; country: string; datacenter: string | null; }
 export interface Provider { id: number; name: string; siteUrl: string | null; controlPanelUrl: string | null; }
-export interface ServerType { id: number; name: string; }
+export interface ServerType { id: number; name: string; virtualizationType: string | null; }
 export interface BillingPeriod { id: number; name: string; }
 export interface PaymentMethod { id: number; name: string; }
 export interface CpuType { id: number; type: string; cores: number; speed: string; }

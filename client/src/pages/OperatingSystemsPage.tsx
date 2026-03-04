@@ -28,6 +28,7 @@ export default function OperatingSystemsPage() {
       ]}
       getDefaults={(item) => item ? { name: item.name, version: item.version, variant: item.variant } : { name: "", version: "", variant: "server" }}
       getInventoryLink={(item) => `/?osId=${item.id}`}
+      defaultSort={[{ id: "name", desc: false }]}
     />
   );
 }
