@@ -10,11 +10,11 @@ CREATE TABLE IF NOT EXISTS "payment_methods" (
 	CONSTRAINT "payment_methods_name_unique" UNIQUE("name")
 );
 --> statement-breakpoint
-ALTER TABLE "servers" ADD COLUMN "price" numeric(10, 2);--> statement-breakpoint
-ALTER TABLE "servers" ADD COLUMN "billing_period_id" integer;--> statement-breakpoint
-ALTER TABLE "servers" ADD COLUMN "payment_method_id" integer;--> statement-breakpoint
-ALTER TABLE "servers" ADD COLUMN "recurring" boolean DEFAULT false NOT NULL;--> statement-breakpoint
-ALTER TABLE "servers" ADD COLUMN "auto_renew" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "servers" ADD COLUMN IF NOT EXISTS "price" numeric(10, 2);--> statement-breakpoint
+ALTER TABLE "servers" ADD COLUMN IF NOT EXISTS "billing_period_id" integer;--> statement-breakpoint
+ALTER TABLE "servers" ADD COLUMN IF NOT EXISTS "payment_method_id" integer;--> statement-breakpoint
+ALTER TABLE "servers" ADD COLUMN IF NOT EXISTS "recurring" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "servers" ADD COLUMN IF NOT EXISTS "auto_renew" boolean DEFAULT false NOT NULL;--> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "servers" ADD CONSTRAINT "servers_billing_period_id_billing_periods_id_fk" FOREIGN KEY ("billing_period_id") REFERENCES "public"."billing_periods"("id") ON DELETE no action ON UPDATE no action;
 EXCEPTION
