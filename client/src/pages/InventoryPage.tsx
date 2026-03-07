@@ -339,6 +339,14 @@ export default function InventoryPage() {
                     </div>
                   )}
                   {s.serverTypeVirtualization && <Field label="Virtualization" value={s.serverTypeVirtualization} />}
+                  {s.url && (
+                    <div className="min-w-0">
+                      <span className="text-text-secondary text-xs">URL</span>
+                      <div className="truncate">
+                        <a href={s.url.startsWith("http") ? s.url : `https://${s.url}`} target="_blank" rel="noopener" className="text-accent hover:underline">{s.url}</a>
+                      </div>
+                    </div>
+                  )}
                   {s.ip && <Field label="IP" value={s.ip} />}
                   {(s.locationCity || s.locationCountry) && (
                     <Field label="Location" value={[s.locationCity, s.locationCountry].filter(Boolean).join(", ")} />
