@@ -3,22 +3,40 @@ import { eq, count } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/index.js";
 import { users } from "../db/schema/users.js";
-import { hashPassword } from "../utils/password.js";
+import { hashPassword, comparePassword } from "../utils/password.js";
 import { validate } from "../middleware/validate.js";
 import { requireAdmin } from "../middleware/auth.js";
 
 const router = Router();
 
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(4),
+});
+
+/** PUT /api/users/me/password — any authenticated user can change their own password. */
+router.put("/me/password", validate(changePasswordSchema), async (req: Request, res: Response) => {
+  const userId = req.user!.userId;
+  const { currentPassword, newPassword } = req.body;
+  const [user] = await db.select().from(users).where(eq(users.id, userId));
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+  const valid = await comparePassword(currentPassword, user.password);
+  if (!valid) { res.status(400).json({ error: "Current password is incorrect" }); return; }
+  const hash = await hashPassword(newPassword);
+  await db.update(users).set({ password: hash, updatedAt: new Date() }).where(eq(users.id, userId));
+  res.json({ success: true });
+});
+
 const createUserSchema = z.object({
   username: z.string().min(1).max(100),
   password: z.string().min(4),
-  role: z.enum(["admin", "viewer"]),
+  role: z.enum(["admin", "editor", "viewer"]),
 });
 
 const updateUserSchema = z.object({
   username: z.string().min(1).max(100).optional(),
   password: z.string().min(4).optional(),
-  role: z.enum(["admin", "viewer"]).optional(),
+  role: z.enum(["admin", "editor", "viewer"]).optional(),
 });
 
 /** GET /api/users — admin only */

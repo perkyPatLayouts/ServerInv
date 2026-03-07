@@ -14,7 +14,7 @@ interface Props {
 
 export default function WebsitesModal({ open, server, onClose }: Props) {
   const { list, create, update, remove } = useWebsites(server.id);
-  const isAdmin = useAuthStore((s) => s.isAdmin);
+  const isEditorOrAdmin = useAuthStore((s) => s.isEditorOrAdmin);
   const [editing, setEditing] = useState<Website | null>(null);
   const [domain, setDomain] = useState("");
   const [application, setApplication] = useState("");
@@ -54,7 +54,7 @@ export default function WebsitesModal({ open, server, onClose }: Props) {
               <div className="text-sm font-medium text-text-primary">{w.domain}</div>
               {w.application && <div className="text-xs text-text-secondary">{w.application}</div>}
             </div>
-            {isAdmin() && (
+            {isEditorOrAdmin() && (
               <div className="flex gap-1">
                 <Button size="sm" variant="ghost" onClick={() => startEdit(w)}>Edit</Button>
                 <Button size="sm" variant="ghost" className="text-danger" onClick={() => remove.mutate(w.id)}>Delete</Button>
@@ -64,7 +64,7 @@ export default function WebsitesModal({ open, server, onClose }: Props) {
         ))}
         {list.data?.length === 0 && <p className="text-sm text-text-secondary">No websites</p>}
 
-        {isAdmin() && (
+        {isEditorOrAdmin() && (
           <div className="border-t border-border pt-4 space-y-3">
             <h3 className="text-sm font-medium text-text-primary">{editing ? "Edit Website" : "Add Website"}</h3>
             <Input label="Domain" value={domain} onChange={(e) => setDomain(e.target.value)} />

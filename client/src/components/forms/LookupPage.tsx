@@ -41,7 +41,7 @@ interface Props<T extends { id: number }> {
 
 export default function LookupPage<T extends { id: number }>({ title, hook, columns, fields, getDefaults, extra, getInventoryLink, defaultSort }: Props<T>) {
   const { list, create, update, remove } = hook();
-  const isAdmin = useAuthStore((s) => s.isAdmin);
+  const isEditorOrAdmin = useAuthStore((s) => s.isEditorOrAdmin);
   const [editItem, setEditItem] = useState<T | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -57,7 +57,7 @@ export default function LookupPage<T extends { id: number }>({ title, hook, colu
         </Link>
       ),
     }] : []),
-    ...(isAdmin() ? [{
+    ...(isEditorOrAdmin() ? [{
       id: "actions" as const,
       header: "Actions",
       cell: ({ row }: any) => (
@@ -67,7 +67,7 @@ export default function LookupPage<T extends { id: number }>({ title, hook, colu
         </div>
       ),
     }] : []),
-  ], [columns, isAdmin]);
+  ], [columns, isEditorOrAdmin]);
 
   const FormModal = ({ open, item, onClose }: { open: boolean; item: T | null; onClose: () => void }) => {
     const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm({ defaultValues: getDefaults(item) });
@@ -91,7 +91,6 @@ export default function LookupPage<T extends { id: number }>({ title, hook, colu
                 <SelectWithAddCustom
                   label={f.label}
                   {...register(f.name, f.required ? { required: "Required" } : {})}
-                  placeholder="Select..."
                   options={f.selectOptions}
                   onAddCustom={(val) => setValue(f.name, val)}
                   error={(errors as any)[f.name]?.message as string}
@@ -122,7 +121,7 @@ export default function LookupPage<T extends { id: number }>({ title, hook, colu
   return (
     <>
       <PageHeader title={title}>
-        {isAdmin() && <Button onClick={() => setShowCreate(true)}>Add</Button>}
+        {isEditorOrAdmin() && <Button onClick={() => setShowCreate(true)}>Add</Button>}
       </PageHeader>
       {list.isLoading ? (
         <p className="text-text-secondary">Loading...</p>
@@ -155,7 +154,7 @@ export default function LookupPage<T extends { id: number }>({ title, hook, colu
                     {invLink && (
                       <Link to={invLink} className="text-xs text-accent hover:underline py-1.5">View servers</Link>
                     )}
-                    {isAdmin() && (
+                    {isEditorOrAdmin() && (
                       <>
                         <Button size="sm" variant="ghost" onClick={() => setEditItem(item)}>Edit</Button>
                         <Button size="sm" variant="ghost" className="text-danger" onClick={() => setDeleteId(item.id)}>Del</Button>

@@ -32,3 +32,12 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
   }
   next();
 }
+
+/** Require the authenticated user to have the admin or editor role. */
+export function requireEditorOrAdmin(req: Request, res: Response, next: NextFunction) {
+  if (req.user?.role !== "admin" && req.user?.role !== "editor") {
+    res.status(403).json({ error: "Editor or admin access required" });
+    return;
+  }
+  next();
+}

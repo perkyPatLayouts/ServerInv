@@ -41,7 +41,7 @@ function ProviderLink({ name, siteUrl, cpUrl }: { name: string; siteUrl?: string
 
 export default function WebsitesPage() {
   const { list } = useServers();
-  const isAdmin = useAuthStore((s) => s.isAdmin);
+  const isEditorOrAdmin = useAuthStore((s) => s.isEditorOrAdmin);
   const [editItem, setEditItem] = useState<WebsiteRow | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [deleteItem, setDeleteItem] = useState<WebsiteRow | null>(null);
@@ -78,7 +78,7 @@ export default function WebsitesPage() {
         ) : "—";
       },
     },
-    ...(isAdmin() ? [{
+    ...(isEditorOrAdmin() ? [{
       id: "actions" as const,
       header: "Actions",
       cell: ({ row }: any) => (
@@ -95,7 +95,7 @@ export default function WebsitesPage() {
   return (
     <>
       <PageHeader title="Websites & Applications">
-        {isAdmin() && <Button onClick={() => setShowCreate(true)}>Add Website</Button>}
+        {isEditorOrAdmin() && <Button onClick={() => setShowCreate(true)}>Add Website</Button>}
       </PageHeader>
       {list.isLoading ? (
         <p className="text-text-secondary">Loading...</p>
@@ -110,7 +110,7 @@ export default function WebsitesPage() {
               <div className="bg-surface border border-border rounded-lg p-4">
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="font-semibold text-text-primary break-all">{w.domain}</h3>
-                  {isAdmin() && (
+                  {isEditorOrAdmin() && (
                     <div className="flex gap-1 shrink-0">
                       <Button size="sm" variant="ghost" onClick={() => setEditItem(w)}>Edit</Button>
                       <Button size="sm" variant="ghost" className="text-danger" onClick={() => setDeleteItem(w)}>Del</Button>

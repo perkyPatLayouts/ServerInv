@@ -50,7 +50,7 @@ const FILTER_KEYS = ["serverTypeId", "providerId", "locationId", "currencyId", "
 export default function InventoryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { list, remove } = useServers();
-  const isAdmin = useAuthStore((s) => s.isAdmin);
+  const isEditorOrAdmin = useAuthStore((s) => s.isEditorOrAdmin);
   const [editServer, setEditServer] = useState<Server | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -221,7 +221,7 @@ export default function InventoryPage() {
         </button>
       ),
     },
-    ...(isAdmin() ? [{
+    ...(isEditorOrAdmin() ? [{
       id: "actions" as const,
       header: "Actions",
       cell: ({ row }: any) => (
@@ -231,12 +231,12 @@ export default function InventoryPage() {
         </div>
       ),
     }] : []),
-  ], [isAdmin]);
+  ], [isEditorOrAdmin]);
 
   return (
     <>
       <PageHeader title="Server Inventory">
-        {isAdmin() && <Button onClick={() => setShowCreate(true)}>Add Server</Button>}
+        {isEditorOrAdmin() && <Button onClick={() => setShowCreate(true)}>Add Server</Button>}
       </PageHeader>
 
       {/* Filter bar */}
@@ -320,7 +320,7 @@ export default function InventoryPage() {
                     >
                       {s.websites?.length || 0} sites
                     </button>
-                    {isAdmin() && (
+                    {isEditorOrAdmin() && (
                       <>
                         <Button size="sm" variant="ghost" onClick={() => setEditServer(s)}>Edit</Button>
                         <Button size="sm" variant="ghost" onClick={() => setDeleteId(s.id)} className="text-danger">Del</Button>
@@ -338,6 +338,7 @@ export default function InventoryPage() {
                       </div>
                     </div>
                   )}
+                  {s.serverTypeVirtualization && <Field label="Virtualization" value={s.serverTypeVirtualization} />}
                   {s.ip && <Field label="IP" value={s.ip} />}
                   {(s.locationCity || s.locationCountry) && (
                     <Field label="Location" value={[s.locationCity, s.locationCountry].filter(Boolean).join(", ")} />

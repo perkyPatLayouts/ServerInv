@@ -13,6 +13,7 @@ interface AuthState {
   setAuth: (token: string, user: User) => void;
   logout: () => void;
   isAdmin: () => boolean;
+  isEditorOrAdmin: () => boolean;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -23,6 +24,7 @@ export const useAuthStore = create<AuthState>()(
       setAuth: (token, user) => set({ token, user }),
       logout: () => set({ token: null, user: null }),
       isAdmin: () => get().user?.role === "admin",
+      isEditorOrAdmin: () => get().user?.role === "admin" || get().user?.role === "editor",
     }),
     { name: "serverinv-auth" }
   )

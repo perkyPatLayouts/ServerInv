@@ -5,7 +5,7 @@ import { db } from "../db/index.js";
 import { currencies } from "../db/schema/currencies.js";
 import { servers } from "../db/schema/servers.js";
 import { validate } from "../middleware/validate.js";
-import { requireAdmin } from "../middleware/auth.js";
+import { requireEditorOrAdmin } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -29,20 +29,20 @@ router.get("/:id", async (req: Request, res: Response) => {
 });
 
 /** POST /api/currencies */
-router.post("/", requireAdmin, validate(currencySchema), async (req: Request, res: Response) => {
+router.post("/", requireEditorOrAdmin, validate(currencySchema), async (req: Request, res: Response) => {
   const [row] = await db.insert(currencies).values(req.body).returning();
   res.status(201).json(row);
 });
 
 /** PUT /api/currencies/:id */
-router.put("/:id", requireAdmin, validate(currencySchema), async (req: Request, res: Response) => {
+router.put("/:id", requireEditorOrAdmin, validate(currencySchema), async (req: Request, res: Response) => {
   const [row] = await db.update(currencies).set(req.body).where(eq(currencies.id, +req.params.id)).returning();
   if (!row) { res.status(404).json({ error: "Not found" }); return; }
   res.json(row);
 });
 
 /** DELETE /api/currencies/:id — blocked if referenced by servers */
-router.delete("/:id", requireAdmin, async (req: Request, res: Response) => {
+router.delete("/:id", requireEditorOrAdmin, async (req: Request, res: Response) => {
   const refs = await db.select({ id: servers.id }).from(servers).where(eq(servers.currencyId, +req.params.id)).limit(1);
   if (refs.length) { res.status(409).json({ error: "Currency is referenced by servers" }); return; }
   const [row] = await db.delete(currencies).where(eq(currencies.id, +req.params.id)).returning();

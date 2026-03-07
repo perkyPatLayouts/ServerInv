@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "../db/index.js";
 import { serverWebsites } from "../db/schema/serverWebsites.js";
 import { validate } from "../middleware/validate.js";
-import { requireAdmin } from "../middleware/auth.js";
+import { requireEditorOrAdmin } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -21,13 +21,13 @@ router.get("/:serverId/websites", async (req: Request, res: Response) => {
 });
 
 /** POST /api/servers/:serverId/websites */
-router.post("/:serverId/websites", requireAdmin, validate(websiteSchema), async (req: Request, res: Response) => {
+router.post("/:serverId/websites", requireEditorOrAdmin, validate(websiteSchema), async (req: Request, res: Response) => {
   const [row] = await db.insert(serverWebsites).values({ ...req.body, serverId: +req.params.serverId }).returning();
   res.status(201).json(row);
 });
 
 /** PUT /api/servers/:serverId/websites/:id */
-router.put("/:serverId/websites/:id", requireAdmin, validate(websiteSchema), async (req: Request, res: Response) => {
+router.put("/:serverId/websites/:id", requireEditorOrAdmin, validate(websiteSchema), async (req: Request, res: Response) => {
   const [row] = await db
     .update(serverWebsites)
     .set(req.body)
@@ -38,7 +38,7 @@ router.put("/:serverId/websites/:id", requireAdmin, validate(websiteSchema), asy
 });
 
 /** DELETE /api/servers/:serverId/websites/:id */
-router.delete("/:serverId/websites/:id", requireAdmin, async (req: Request, res: Response) => {
+router.delete("/:serverId/websites/:id", requireEditorOrAdmin, async (req: Request, res: Response) => {
   const [row] = await db
     .delete(serverWebsites)
     .where(and(eq(serverWebsites.id, +req.params.id), eq(serverWebsites.serverId, +req.params.serverId)))

@@ -273,10 +273,7 @@ function InlineServerTypeForm({ onSave, onCancel, createServerType }: { onSave: 
         placeholder="None"
         options={[
           { value: "KVM", label: "KVM" },
-          { value: "OpenVZ 9", label: "OpenVZ 9" },
-          { value: "OpenVZ 8", label: "OpenVZ 8" },
-          { value: "OpenVZ 7", label: "OpenVZ 7" },
-          { value: "OpenVZ 6", label: "OpenVZ 6" },
+          { value: "OpenVZ", label: "OpenVZ" },
         ]}
         onAddCustom={(val) => setVirtualizationType(val)}
       />

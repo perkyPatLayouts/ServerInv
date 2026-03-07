@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { useUsers } from "../api/hooks";
 import { useAuthStore } from "../stores/authStore";
 import { User } from "../types";
+import api from "../api/client";
 import DataTable from "../components/ui/DataTable";
 import PageHeader from "../components/ui/PageHeader";
 import Button from "../components/ui/Button";
@@ -13,11 +14,13 @@ import ConfirmDialog from "../components/ui/ConfirmDialog";
 
 export default function UsersPage() {
   const isAdmin = useAuthStore((s) => s.isAdmin);
+  const user = useAuthStore((s) => s.user);
   const { list, create, update, remove } = useUsers();
   const [editUser, setEditUser] = useState<User | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
+  if (user?.role === "editor") return <ChangeMyPassword />;
   if (!isAdmin()) return <p className="text-text-secondary">Admin access required</p>;
 
   return (
@@ -53,8 +56,8 @@ export default function UsersPage() {
                   </div>
                   <div className="min-w-0">
                     <h3 className="font-semibold text-text-primary truncate">{row.original.username}</h3>
-                    <span className={`inline-block text-xs px-2 py-0.5 rounded-full mt-0.5 ${row.original.role === "admin" ? "bg-accent/10 text-accent" : "bg-border text-text-secondary"}`}>
-                      {row.original.role === "admin" ? "Administrator" : "Viewer"}
+                    <span className={`inline-block text-xs px-2 py-0.5 rounded-full mt-0.5 ${row.original.role === "admin" ? "bg-accent/10 text-accent" : row.original.role === "editor" ? "bg-success/10 text-success" : "bg-border text-text-secondary"}`}>
+                      {row.original.role === "admin" ? "Administrator" : row.original.role === "editor" ? "Editor" : "Viewer"}
                     </span>
                   </div>
                 </div>
@@ -118,7 +121,7 @@ function UserFormModal({ open, user, onClose, create, update }: {
         <Select
           label="Role"
           {...register("role")}
-          options={[{ value: "admin", label: "Administrator" }, { value: "viewer", label: "Viewer" }]}
+          options={[{ value: "admin", label: "Administrator" }, { value: "editor", label: "Editor" }, { value: "viewer", label: "Viewer" }]}
         />
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="secondary" type="button" onClick={onClose}>Cancel</Button>
@@ -126,5 +129,53 @@ function UserFormModal({ open, user, onClose, create, update }: {
         </div>
       </form>
     </Modal>
+  );
+}
+
+/** Self-service password change form for editors. */
+function ChangeMyPassword() {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    if (newPassword.length < 4) { setError("New password must be at least 4 characters"); return; }
+    if (newPassword !== confirmPassword) { setError("Passwords do not match"); return; }
+    setLoading(true);
+    try {
+      await api.put("/users/me/password", { currentPassword, newPassword });
+      setSuccess("Password changed successfully");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: any) {
+      setError(err.response?.data?.error || "Failed to change password");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <PageHeader title="Change My Password" />
+      <div className="max-w-md">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Input label="Current Password" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+          <Input label="New Password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+          <Input label="Confirm New Password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+          {error && <p className="text-sm text-danger">{error}</p>}
+          {success && <p className="text-sm text-success">{success}</p>}
+          <Button type="submit" disabled={loading || !currentPassword || !newPassword || !confirmPassword}>
+            {loading ? "Changing..." : "Change Password"}
+          </Button>
+        </form>
+      </div>
+    </>
   );
 }

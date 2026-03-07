@@ -19,7 +19,6 @@ const navItems = [
 ];
 
 const adminItems = [
-  { to: "/users", label: "Users" },
   { to: "/backup", label: "Backup" },
 ];
 
@@ -29,6 +28,7 @@ interface Props {
 
 export default function Sidebar({ onNavigate }: Props) {
   const isAdmin = useAuthStore((s) => s.isAdmin);
+  const isEditorOrAdmin = useAuthStore((s) => s.isEditorOrAdmin);
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `block px-4 py-2 rounded text-sm transition-colors ${isActive ? "bg-accent text-white" : "text-text-secondary hover:bg-surface-hover hover:text-text-primary"}`;
 
@@ -43,6 +43,14 @@ export default function Sidebar({ onNavigate }: Props) {
             {item.label}
           </NavLink>
         ))}
+        {isEditorOrAdmin() && (
+          <>
+            <div className="pt-4 pb-1 px-2 text-xs font-semibold text-text-secondary uppercase">Account</div>
+            <NavLink to="/users" className={linkClass} onClick={onNavigate}>
+              {isAdmin() ? "Users" : "My Password"}
+            </NavLink>
+          </>
+        )}
         {isAdmin() && (
           <>
             <div className="pt-4 pb-1 px-2 text-xs font-semibold text-text-secondary uppercase">Admin</div>

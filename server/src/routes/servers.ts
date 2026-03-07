@@ -13,7 +13,7 @@ import { operatingSystems } from "../db/schema/operatingSystems.js";
 import { billingPeriods } from "../db/schema/billingPeriods.js";
 import { paymentMethods } from "../db/schema/paymentMethods.js";
 import { validate } from "../middleware/validate.js";
-import { requireAdmin } from "../middleware/auth.js";
+import { requireEditorOrAdmin } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -116,20 +116,20 @@ router.get("/:id", async (req: Request, res: Response) => {
 });
 
 /** POST /api/servers */
-router.post("/", requireAdmin, validate(serverSchema), async (req: Request, res: Response) => {
+router.post("/", requireEditorOrAdmin, validate(serverSchema), async (req: Request, res: Response) => {
   const [row] = await db.insert(servers).values(req.body).returning();
   res.status(201).json(row);
 });
 
 /** PUT /api/servers/:id */
-router.put("/:id", requireAdmin, validate(serverSchema), async (req: Request, res: Response) => {
+router.put("/:id", requireEditorOrAdmin, validate(serverSchema), async (req: Request, res: Response) => {
   const [row] = await db.update(servers).set(req.body).where(eq(servers.id, +req.params.id)).returning();
   if (!row) { res.status(404).json({ error: "Not found" }); return; }
   res.json(row);
 });
 
 /** DELETE /api/servers/:id */
-router.delete("/:id", requireAdmin, async (req: Request, res: Response) => {
+router.delete("/:id", requireEditorOrAdmin, async (req: Request, res: Response) => {
   const [row] = await db.delete(servers).where(eq(servers.id, +req.params.id)).returning();
   if (!row) { res.status(404).json({ error: "Not found" }); return; }
   res.json(row);
