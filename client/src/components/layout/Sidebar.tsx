@@ -35,7 +35,8 @@ export default function Sidebar({ onNavigate }: Props) {
   return (
     <aside className="w-56 h-full bg-surface-alt border-r border-border flex flex-col">
       <div className="px-4 py-4 border-b border-border">
-        <h1 className="text-lg font-bold text-text-primary">ServerInv</h1>
+        <h1 className="text-lg font-bold text-text-primary">Server Inventory</h1>
+        <span className="text-xs text-text-secondary">v{__APP_VERSION__}</span>
       </div>
       <nav className="flex-1 overflow-y-auto py-4 space-y-1 px-2">
         {navItems.map((item) => (
