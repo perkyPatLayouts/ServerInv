@@ -1,83 +1,81 @@
 import { useMemo, useState } from "react";
 import { ColumnDef } from "@tanstack/react-table";
-import { useServers, useWebsites } from "../api/hooks";
+import { useApps, useServers } from "../api/hooks";
 import { useAuthStore } from "../stores/authStore";
+import { App } from "../types";
 import DataTable from "../components/ui/DataTable";
 import PageHeader from "../components/ui/PageHeader";
 import Button from "../components/ui/Button";
 import Modal from "../components/ui/Modal";
 import Input from "../components/ui/Input";
-import Select from "../components/ui/Select";
+import Textarea from "../components/ui/Textarea";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 
-interface WebsiteRow {
-  id: number;
-  domain: string;
-  application: string | null;
-  notes: string | null;
-  serverName: string;
-  serverId: number;
-  serverIp: string | null;
-  providerName: string | null;
-  providerSiteUrl: string | null;
-  providerControlPanelUrl: string | null;
-}
-
-/** Renders a provider name as a link with optional CP badge. */
-function ProviderLink({ name, siteUrl, cpUrl }: { name: string; siteUrl?: string | null; cpUrl?: string | null }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      {siteUrl ? (
-        <a href={siteUrl} target="_blank" rel="noopener" className="text-accent hover:underline">{name}</a>
-      ) : (
-        <span>{name}</span>
-      )}
-      {cpUrl && (
-        <a href={cpUrl} target="_blank" rel="noopener" className="text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent hover:bg-accent/30 font-medium leading-none" title="Control Panel">CP</a>
-      )}
-    </span>
-  );
+interface AppRow extends App {
+  serverCount: number;
 }
 
 export default function WebsitesPage() {
-  const { list } = useServers();
+  const { list: appsList, create, update, remove } = useApps();
+  const { list: serversList } = useServers();
   const isEditorOrAdmin = useAuthStore((s) => s.isEditorOrAdmin);
-  const [editItem, setEditItem] = useState<WebsiteRow | null>(null);
+  const [editItem, setEditItem] = useState<App | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [deleteItem, setDeleteItem] = useState<WebsiteRow | null>(null);
+  const [deleteItem, setDeleteItem] = useState<App | null>(null);
+  const [expandedNotes, setExpandedNotes] = useState<Set<number>>(new Set());
 
-  const data = useMemo<WebsiteRow[]>(() => {
-    return (list.data || []).flatMap((s) =>
-      (s.websites || []).map((w) => ({
-        id: w.id,
-        domain: w.domain,
-        application: w.application,
-        notes: w.notes,
-        serverName: s.name,
-        serverId: s.id,
-        serverIp: s.ip,
-        providerName: s.providerName || null,
-        providerSiteUrl: s.providerSiteUrl || null,
-        providerControlPanelUrl: s.providerControlPanelUrl || null,
-      }))
-    );
-  }, [list.data]);
+  const data = useMemo<AppRow[]>(() => {
+    const servers = serversList.data || [];
+    const apps = appsList.data || [];
 
-  const columns: ColumnDef<WebsiteRow, any>[] = [
-    { accessorKey: "domain", header: "Domain" },
-    { accessorKey: "application", header: "Application", cell: ({ getValue }) => getValue() || "—" },
-    { accessorKey: "serverName", header: "Server" },
-    { accessorKey: "serverIp", header: "IP" },
+    return apps.map((app) => {
+      const serverCount = servers.filter((s) =>
+        s.apps?.some((sa) => sa.appId === app.id)
+      ).length;
+      return { ...app, serverCount };
+    });
+  }, [appsList.data, serversList.data]);
+
+  const toggleNotes = (id: number) => {
+    setExpandedNotes((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const columns: ColumnDef<AppRow, any>[] = [
+    { accessorKey: "name", header: "App Name" },
     {
-      accessorKey: "providerName",
-      header: "Provider",
+      accessorKey: "notes",
+      header: "Notes",
       cell: ({ row }) => {
-        const w = row.original;
-        return w.providerName ? (
-          <ProviderLink name={w.providerName} siteUrl={w.providerSiteUrl} cpUrl={w.providerControlPanelUrl} />
-        ) : "—";
+        const app = row.original;
+        if (!app.notes) return "—";
+        const isExpanded = expandedNotes.has(app.id);
+        const truncated = app.notes.length > 100 ? app.notes.slice(0, 100) + "..." : app.notes;
+        return (
+          <div>
+            <p className="whitespace-pre-wrap break-words">
+              {isExpanded ? app.notes : truncated}
+            </p>
+            {app.notes.length > 100 && (
+              <button
+                onClick={() => toggleNotes(app.id)}
+                className="text-xs text-accent hover:underline mt-1"
+              >
+                {isExpanded ? "Show less" : "Show more"}
+              </button>
+            )}
+          </div>
+        );
       },
     },
+    { accessorKey: "serverCount", header: "Servers" },
     ...(isEditorOrAdmin() ? [{
       id: "actions" as const,
       header: "Actions",
@@ -90,43 +88,54 @@ export default function WebsitesPage() {
     }] : []),
   ];
 
-  const servers = list.data || [];
-
   return (
     <>
-      <PageHeader title="Websites & Applications">
-        {isEditorOrAdmin() && <Button onClick={() => setShowCreate(true)}>Add Website</Button>}
+      <PageHeader title="Apps">
+        {isEditorOrAdmin() && <Button onClick={() => setShowCreate(true)}>Add App</Button>}
       </PageHeader>
-      {list.isLoading ? (
+      {appsList.isLoading ? (
         <p className="text-text-secondary">Loading...</p>
       ) : (
         <DataTable
           data={data}
           columns={columns}
-          defaultSort={[{ id: "serverName", desc: false }]}
+          defaultSort={[{ id: "name", desc: false }]}
           renderCard={(row) => {
-            const w = row.original;
+            const app = row.original;
+            const isExpanded = expandedNotes.has(app.id);
+            const truncated = app.notes && app.notes.length > 200 ? app.notes.slice(0, 200) + "..." : app.notes;
             return (
               <div className="bg-surface border border-border rounded-lg p-4">
                 <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-semibold text-text-primary break-all">{w.domain}</h3>
+                  <h3 className="font-semibold text-text-primary">{app.name}</h3>
                   {isEditorOrAdmin() && (
                     <div className="flex gap-1 shrink-0">
-                      <Button size="sm" variant="ghost" onClick={() => setEditItem(w)}>Edit</Button>
-                      <Button size="sm" variant="ghost" className="text-danger" onClick={() => setDeleteItem(w)}>Del</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditItem(app)}>Edit</Button>
+                      <Button size="sm" variant="ghost" className="text-danger" onClick={() => setDeleteItem(app)}>Del</Button>
                     </div>
                   )}
                 </div>
-                <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                  {w.application && <div><span className="text-text-secondary text-xs">App</span><div className="text-text-primary">{w.application}</div></div>}
-                  <div><span className="text-text-secondary text-xs">Server</span><div className="text-text-primary">{w.serverName}</div></div>
-                  {w.serverIp && <div><span className="text-text-secondary text-xs">IP</span><div className="text-text-primary">{w.serverIp}</div></div>}
-                  {w.providerName && (
+                <div className="mt-2 space-y-2 text-sm">
+                  {app.notes && (
                     <div>
-                      <span className="text-text-secondary text-xs">Provider</span>
-                      <div><ProviderLink name={w.providerName} siteUrl={w.providerSiteUrl} cpUrl={w.providerControlPanelUrl} /></div>
+                      <span className="text-text-secondary text-xs">Notes</span>
+                      <div className="text-text-primary whitespace-pre-wrap break-words">
+                        {isExpanded ? app.notes : truncated}
+                      </div>
+                      {app.notes.length > 200 && (
+                        <button
+                          onClick={() => toggleNotes(app.id)}
+                          className="text-xs text-accent hover:underline mt-1"
+                        >
+                          {isExpanded ? "Show less" : "Show more"}
+                        </button>
+                      )}
                     </div>
                   )}
+                  <div>
+                    <span className="text-text-secondary text-xs">Servers</span>
+                    <div className="text-text-primary">{app.serverCount}</div>
+                  </div>
                 </div>
               </div>
             );
@@ -135,18 +144,20 @@ export default function WebsitesPage() {
       )}
 
       {(showCreate || editItem) && (
-        <WebsiteFormModal
+        <AppFormModal
           open={showCreate || !!editItem}
-          website={editItem}
-          servers={servers.map((s) => ({ value: s.id, label: s.name }))}
+          app={editItem}
+          create={create}
+          update={update}
           onClose={() => { setShowCreate(false); setEditItem(null); }}
         />
       )}
 
       {deleteItem && (
-        <DeleteWebsiteDialog
+        <DeleteAppDialog
           open={!!deleteItem}
-          website={deleteItem}
+          app={deleteItem}
+          remove={remove}
           onClose={() => setDeleteItem(null)}
         />
       )}
@@ -154,28 +165,23 @@ export default function WebsitesPage() {
   );
 }
 
-/** Modal for creating or editing a website. */
-function WebsiteFormModal({ open, website, servers, onClose }: {
+/** Modal for creating or editing an app. */
+function AppFormModal({ open, app, create, update, onClose }: {
   open: boolean;
-  website: WebsiteRow | null;
-  servers: { value: number; label: string }[];
+  app: App | null;
+  create: any;
+  update: any;
   onClose: () => void;
 }) {
-  const [serverId, setServerId] = useState<number>(website?.serverId || (servers[0]?.value ?? 0));
-  const [domain, setDomain] = useState(website?.domain || "");
-  const [application, setApplication] = useState(website?.application || "");
-  const [notes, setNotes] = useState(website?.notes || "");
-
-  // Use the hook for the selected server
-  const activeServerId = website ? website.serverId : serverId;
-  const { create, update } = useWebsites(activeServerId);
+  const [name, setName] = useState(app?.name || "");
+  const [notes, setNotes] = useState(app?.notes || "");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!domain.trim()) return;
-    const payload = { domain, application: application || null, notes: notes || null };
-    if (website) {
-      await update.mutateAsync({ id: website.id, ...payload });
+    if (!name.trim()) return;
+    const payload = { name, notes: notes || null };
+    if (app) {
+      await update.mutateAsync({ id: app.id, ...payload });
     } else {
       await create.mutateAsync(payload);
     }
@@ -183,30 +189,29 @@ function WebsiteFormModal({ open, website, servers, onClose }: {
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={website ? "Edit Website" : "Add Website"}>
+    <Modal open={open} onClose={onClose} title={app ? "Edit App" : "Add App"}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        {!website && (
-          <Select
-            label="Server"
-            value={serverId}
-            onChange={(e) => setServerId(+e.target.value)}
-            options={servers}
-            placeholder="Select server..."
-          />
-        )}
-        {website && (
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-text-primary">Server</label>
-            <div className="text-sm text-text-secondary">{website.serverName}</div>
-          </div>
-        )}
-        <Input label="Domain" value={domain} onChange={(e) => setDomain(e.target.value)} autoFocus />
-        <Input label="Application" value={application} onChange={(e) => setApplication(e.target.value)} />
-        <Input label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <Input
+          label="App Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoFocus
+          maxLength={200}
+        />
+        <Textarea
+          label="Notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={6}
+          maxLength={32000}
+        />
+        <div className="text-xs text-text-secondary text-right">
+          {notes.length} / 32,000 characters
+        </div>
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="secondary" type="button" onClick={onClose}>Cancel</Button>
-          <Button type="submit" disabled={create.isPending || update.isPending || !domain.trim()}>
-            {website ? "Save" : "Create"}
+          <Button type="submit" disabled={create.isPending || update.isPending || !name.trim()}>
+            {app ? "Save" : "Create"}
           </Button>
         </div>
       </form>
@@ -214,21 +219,20 @@ function WebsiteFormModal({ open, website, servers, onClose }: {
   );
 }
 
-/** Confirm dialog for deleting a website. */
-function DeleteWebsiteDialog({ open, website, onClose }: {
+/** Confirm dialog for deleting an app. */
+function DeleteAppDialog({ open, app, remove, onClose }: {
   open: boolean;
-  website: WebsiteRow;
+  app: App;
+  remove: any;
   onClose: () => void;
 }) {
-  const { remove } = useWebsites(website.serverId);
-
   return (
     <ConfirmDialog
       open={open}
       onClose={onClose}
-      onConfirm={() => { remove.mutate(website.id); onClose(); }}
-      title="Delete Website"
-      message={`Delete "${website.domain}" from ${website.serverName}?`}
+      onConfirm={() => { remove.mutate(app.id); onClose(); }}
+      title="Delete App"
+      message={`Delete "${app.name}"? This will remove it from all servers.`}
       loading={remove.isPending}
     />
   );

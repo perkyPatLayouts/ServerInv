@@ -9,4 +9,6 @@ export { billingPeriods } from "./billingPeriods";
 export { paymentMethods } from "./paymentMethods";
 export { servers } from "./servers";
 export { serverWebsites } from "./serverWebsites";
+export { apps } from "./apps";
+export { serverApps } from "./serverApps";
 export { backupConfig } from "./backupConfig";

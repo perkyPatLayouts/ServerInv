@@ -60,6 +60,7 @@ cat > $APP_DIR/.env << EOF
 DATABASE_URL=postgres://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
 JWT_SECRET=$JWT_SECRET
 PORT=3000
+ALLOWED_ORIGINS=https://$APP_DOMAIN,http://$APP_DOMAIN
 EOF
 cp $APP_DIR/.env $APP_DIR/server/.env
 chown $APP_USER:$APP_USER $APP_DIR/.env $APP_DIR/server/.env

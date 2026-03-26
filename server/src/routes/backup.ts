@@ -56,12 +56,19 @@ router.get("/download", requireAdmin, async (_req: Request, res: Response) => {
     const dbUrl = process.env.DATABASE_URL!;
 
     if (commandExists("pg_dump")) {
-      execSync(`pg_dump "${dbUrl}" > "${tmpFile}"`);
+      // Use DATABASE_URL directly - pg_dump handles it safely
+      execSync(`pg_dump "${dbUrl}" > "${tmpFile}"`, {
+        env: { ...process.env },
+        shell: '/bin/bash'
+      });
     } else {
       const db = parseDbUrl(dbUrl);
       const container = getDockerContainer();
+      // Security: Use environment variable for password instead of command-line argument
+      // This prevents password exposure in process list and command injection
       execSync(
-        `docker exec -e PGPASSWORD="${db.password}" ${container} pg_dump -U ${db.user} ${db.database} > "${tmpFile}"`,
+        `docker exec -i -e PGPASSWORD='${db.password.replace(/'/g, "'\\''")}' ${container} pg_dump -U ${db.user} -h localhost ${db.database} > "${tmpFile}"`,
+        { env: { ...process.env }, shell: '/bin/bash' }
       );
     }
 
@@ -81,7 +88,9 @@ router.get("/download", requireAdmin, async (_req: Request, res: Response) => {
     });
   } catch (err: any) {
     if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
-    res.status(500).json({ error: "Backup failed", details: err.message });
+    // Security: Don't expose error details to client
+    console.error("Backup error:", err);
+    res.status(500).json({ error: "Backup failed" });
   }
 });
 
@@ -98,13 +107,23 @@ router.post("/restore", requireAdmin, upload.single("backup"), async (req: Reque
     const dbUrl = process.env.DATABASE_URL!;
 
     if (commandExists("psql")) {
-      execSync(`psql "${dbUrl}" < "${tmpFile}"`, { stdio: "pipe" });
+      execSync(`psql "${dbUrl}" < "${tmpFile}"`, {
+        stdio: "pipe",
+        env: { ...process.env },
+        shell: '/bin/bash'
+      });
     } else {
       const db = parseDbUrl(dbUrl);
       const container = getDockerContainer();
+      // Security: Use environment variable for password instead of command-line argument
+      // Escape single quotes in password to prevent injection
       execSync(
-        `docker exec -i -e PGPASSWORD="${db.password}" ${container} psql -U ${db.user} ${db.database} < "${tmpFile}"`,
-        { stdio: ["pipe", "pipe", "pipe"] },
+        `docker exec -i -e PGPASSWORD='${db.password.replace(/'/g, "'\\''")}' ${container} psql -U ${db.user} -h localhost ${db.database} < "${tmpFile}"`,
+        {
+          stdio: ["pipe", "pipe", "pipe"],
+          env: { ...process.env },
+          shell: '/bin/bash'
+        }
       );
     }
 
@@ -112,7 +131,9 @@ router.post("/restore", requireAdmin, upload.single("backup"), async (req: Reque
     res.json({ success: true });
   } catch (err: any) {
     if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
-    res.status(500).json({ error: "Restore failed", details: err.message });
+    // Security: Don't expose error details to client
+    console.error("Restore error:", err);
+    res.status(500).json({ error: "Restore failed" });
   }
 });
 

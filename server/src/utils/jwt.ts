@@ -1,6 +1,10 @@
 import jwt from "jsonwebtoken";
 
-const SECRET = process.env.JWT_SECRET || "fallback-secret";
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required but not set. Please configure JWT_SECRET in your .env file.");
+}
+
+const SECRET = process.env.JWT_SECRET;
 
 export interface JwtPayload {
   userId: number;

@@ -4,6 +4,8 @@ import { z } from "zod";
 import { db } from "../db/index.js";
 import { servers } from "../db/schema/servers.js";
 import { serverWebsites } from "../db/schema/serverWebsites.js";
+import { serverApps } from "../db/schema/serverApps.js";
+import { apps } from "../db/schema/apps.js";
 import { serverTypes } from "../db/schema/serverTypes.js";
 import { providers } from "../db/schema/providers.js";
 import { locations } from "../db/schema/locations.js";
@@ -100,7 +102,29 @@ router.get("/", async (_req: Request, res: Response) => {
     websiteMap.get(w.serverId)!.push(w);
   }
 
-  const result = rows.map((r) => ({ ...r, websites: websiteMap.get(r.id) || [] }));
+  // Attach apps for each server
+  const appRows = await db
+    .select({
+      id: serverApps.id,
+      serverId: serverApps.serverId,
+      appId: serverApps.appId,
+      url: serverApps.url,
+      appName: apps.name,
+      appNotes: apps.notes,
+    })
+    .from(serverApps)
+    .leftJoin(apps, eq(serverApps.appId, apps.id));
+  const appMap = new Map<number, typeof appRows>();
+  for (const a of appRows) {
+    if (!appMap.has(a.serverId)) appMap.set(a.serverId, []);
+    appMap.get(a.serverId)!.push(a);
+  }
+
+  const result = rows.map((r) => ({
+    ...r,
+    websites: websiteMap.get(r.id) || [],
+    apps: appMap.get(r.id) || []
+  }));
   res.json(result);
 });
 
@@ -112,7 +136,19 @@ router.get("/:id", async (req: Request, res: Response) => {
     .where(eq(servers.id, +req.params.id));
   if (!row) { res.status(404).json({ error: "Not found" }); return; }
   const websites = await db.select().from(serverWebsites).where(eq(serverWebsites.serverId, row.id));
-  res.json({ ...row, websites });
+  const serverAppRows = await db
+    .select({
+      id: serverApps.id,
+      serverId: serverApps.serverId,
+      appId: serverApps.appId,
+      url: serverApps.url,
+      appName: apps.name,
+      appNotes: apps.notes,
+    })
+    .from(serverApps)
+    .leftJoin(apps, eq(serverApps.appId, apps.id))
+    .where(eq(serverApps.serverId, row.id));
+  res.json({ ...row, websites, apps: serverAppRows });
 });
 
 /** POST /api/servers */

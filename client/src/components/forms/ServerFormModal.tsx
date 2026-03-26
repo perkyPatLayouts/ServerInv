@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { useServers, useCurrencies, useLocations, useProviders, useCpuTypes, useOperatingSystems, useServerTypes, useBillingPeriods, usePaymentMethods } from "../../api/hooks";
+import { useServers, useCurrencies, useLocations, useProviders, useCpuTypes, useOperatingSystems, useServerTypes, useBillingPeriods, usePaymentMethods, useApps, useServerApps } from "../../api/hooks";
 import { Server } from "../../types";
 import Modal from "../ui/Modal";
 import Input from "../ui/Input";
@@ -8,6 +8,7 @@ import Select from "../ui/Select";
 import SelectWithAdd from "../ui/SelectWithAdd";
 import SelectWithAddCustom from "../ui/SelectWithAddCustom";
 import Button from "../ui/Button";
+import api from "../../api/client";
 
 interface Props {
   open: boolean;
@@ -16,7 +17,7 @@ interface Props {
 }
 
 export default function ServerFormModal({ open, server, onClose }: Props) {
-  const { create, update } = useServers();
+  const { create, update, list: serversList } = useServers();
   const { list: currenciesList, create: createCurrency } = useCurrencies();
   const { list: locationsList, create: createLocation } = useLocations();
   const { list: providersList, create: createProvider } = useProviders();
@@ -25,12 +26,25 @@ export default function ServerFormModal({ open, server, onClose }: Props) {
   const { list: serverTypesList, create: createServerType } = useServerTypes();
   const { list: billingPeriodsList, create: createBillingPeriod } = useBillingPeriods();
   const { list: paymentMethodsList, create: createPaymentMethod } = usePaymentMethods();
+  const { list: appsList, create: createApp } = useApps();
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm({ defaultValues: getDefaults(server) });
 
   const notesValue = watch("notes");
 
-  useEffect(() => { reset(getDefaults(server)); }, [server, open]);
+  // Apps management state
+  const [selectedApps, setSelectedApps] = useState<Array<{ appId: number; url: string }>>([]);
+  const [showAddApp, setShowAddApp] = useState(false);
+
+  useEffect(() => {
+    reset(getDefaults(server));
+    // Load existing apps when editing
+    if (server && server.apps) {
+      setSelectedApps(server.apps.map(sa => ({ appId: sa.appId, url: sa.url || "" })));
+    } else {
+      setSelectedApps([]);
+    }
+  }, [server, open]);
 
   const onSubmit = async (data: any) => {
     const payload = {
@@ -50,12 +64,50 @@ export default function ServerFormModal({ open, server, onClose }: Props) {
       price: data.price || null,
       renewalDate: data.renewalDate || null,
     };
+
+    let serverId: number;
     if (server) {
       await update.mutateAsync({ id: server.id, ...payload });
+      serverId = server.id;
     } else {
-      await create.mutateAsync(payload);
+      const created = await create.mutateAsync(payload);
+      serverId = created.id;
     }
+
+    // Save apps relationships
+    await saveServerApps(serverId);
+
+    // Invalidate servers list to refresh data
+    serversList.refetch();
     onClose();
+  };
+
+  const saveServerApps = async (serverId: number) => {
+    // Get existing apps for this server
+    const existingApps = server?.apps || [];
+    const existingAppIds = new Set(existingApps.map(sa => sa.appId));
+    const selectedAppIds = new Set(selectedApps.map(sa => sa.appId));
+
+    // Delete removed apps
+    for (const existing of existingApps) {
+      if (!selectedAppIds.has(existing.appId)) {
+        await api.delete(`/servers/${serverId}/apps/${existing.id}`);
+      }
+    }
+
+    // Add new apps or update URLs
+    for (const selected of selectedApps) {
+      const existing = existingApps.find(sa => sa.appId === selected.appId);
+      if (existing) {
+        // Update URL if changed
+        if (existing.url !== selected.url) {
+          await api.put(`/servers/${serverId}/apps/${existing.id}`, { url: selected.url || null });
+        }
+      } else {
+        // Create new relationship
+        await api.post(`/servers/${serverId}/apps`, { appId: selected.appId, url: selected.url || null });
+      }
+    }
   };
 
   return (
@@ -227,6 +279,97 @@ export default function ServerFormModal({ open, server, onClose }: Props) {
             )}
           />
         </div>
+
+        {/* Applications Section */}
+        <div className="border-t border-border pt-4">
+          <div className="flex items-center justify-between mb-3">
+            <label className="block text-sm font-medium text-text-primary">Applications</label>
+            <span className="text-xs text-text-secondary">{selectedApps.length} selected</span>
+          </div>
+
+          {/* Selected Apps List */}
+          {selectedApps.map((selectedApp, index) => {
+            const app = appsList.data?.find(a => a.id === selectedApp.appId);
+            return (
+              <div key={index} className="flex gap-2 mb-2 items-start">
+                <div className="flex-1 grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <span className="block text-xs text-text-secondary">App</span>
+                    <div className="text-sm text-text-primary bg-surface-alt rounded px-3 py-2">
+                      {app?.name || "Unknown"}
+                    </div>
+                  </div>
+                  <Input
+                    label="URL (optional)"
+                    value={selectedApp.url}
+                    onChange={(e) => {
+                      const newApps = [...selectedApps];
+                      newApps[index].url = e.target.value;
+                      setSelectedApps(newApps);
+                    }}
+                    placeholder="example.com"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="text-danger mt-6"
+                  onClick={() => {
+                    setSelectedApps(selectedApps.filter((_, i) => i !== index));
+                  }}
+                >
+                  Remove
+                </Button>
+              </div>
+            );
+          })}
+
+          {/* Add App Dropdown or Inline Form */}
+          <div className="mt-2">
+            {!showAddApp ? (
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Select
+                    label=""
+                    value=""
+                    onChange={(e) => {
+                      const appId = +e.target.value;
+                      if (appId && !selectedApps.find(sa => sa.appId === appId)) {
+                        setSelectedApps([...selectedApps, { appId, url: "" }]);
+                      }
+                      // Reset select
+                      e.target.value = "";
+                    }}
+                    options={(appsList.data || [])
+                      .filter(app => !selectedApps.find(sa => sa.appId === app.id))
+                      .map(app => ({ value: app.id, label: app.name }))}
+                    placeholder="+ Add application..."
+                  />
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setShowAddApp(true)}
+                  className="mt-0"
+                >
+                  Add New
+                </Button>
+              </div>
+            ) : (
+              <InlineAppForm
+                onSave={async (created) => {
+                  setSelectedApps([...selectedApps, { appId: created.id, url: "" }]);
+                  setShowAddApp(false);
+                }}
+                onCancel={() => setShowAddApp(false)}
+                createApp={createApp}
+              />
+            )}
+          </div>
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-text-primary mb-1">Notes</label>
           <textarea
@@ -460,6 +603,41 @@ function InlineOsForm({ onSave, onCancel, createOs }: { onSave: (o: any) => void
         <Button type="button" size="sm" variant="secondary" onClick={onCancel}>Cancel</Button>
       </div>
     </>
+  );
+}
+
+/** Inline form to create a new App. */
+function InlineAppForm({ onSave, onCancel, createApp }: { onSave: (app: any) => void; onCancel: () => void; createApp: any }) {
+  const [name, setName] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const handleSubmit = async () => {
+    if (!name.trim()) return;
+    const result = await createApp.mutateAsync({ name, notes: notes || null });
+    onSave(result);
+  };
+
+  return (
+    <div className="border border-border rounded p-3 bg-surface-alt space-y-3">
+      <Input label="App Name" value={name} onChange={(e) => setName(e.target.value)} autoFocus maxLength={200} />
+      <div>
+        <label className="block text-sm font-medium text-text-primary mb-1">Notes (optional)</label>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="w-full rounded border border-border bg-surface text-text-primary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent resize-y"
+          rows={2}
+          maxLength={32000}
+          placeholder="Brief description of the application..."
+        />
+      </div>
+      <div className="flex gap-2">
+        <Button type="button" size="sm" onClick={handleSubmit} disabled={createApp.isPending || !name.trim()}>
+          {createApp.isPending ? "Adding..." : "Add App"}
+        </Button>
+        <Button type="button" size="sm" variant="secondary" onClick={onCancel}>Cancel</Button>
+      </div>
+    </div>
   );
 }
 

@@ -1,7 +1,20 @@
 {
   "permissions": {
     "allow": [
-      "WebSearch"
+      "WebSearch",
+      "Bash(docker-compose ps:*)",
+      "Bash(docker --version:*)",
+      "Bash(docker compose:*)",
+      "Bash(npm run db:migrate:*)",
+      "Bash(npm run db:seed:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm run db:generate:*)",
+      "Bash(tsx:*)",
+      "Bash(npx tsx:*)",
+      "Bash(npx tsc:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

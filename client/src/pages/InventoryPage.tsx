@@ -10,6 +10,7 @@ import Button from "../components/ui/Button";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import ServerFormModal from "../components/forms/ServerFormModal";
 import WebsitesModal from "../components/forms/WebsitesModal";
+import ServerAppsModal from "../components/forms/ServerAppsModal";
 import MultiSelect from "../components/ui/MultiSelect";
 
 /** Returns true if the date is within 14 days from now or already past. */
@@ -55,6 +56,7 @@ export default function InventoryPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [websiteServer, setWebsiteServer] = useState<Server | null>(null);
+  const [appsServer, setAppsServer] = useState<Server | null>(null);
   const [expandedNotes, setExpandedNotes] = useState<Set<number>>(new Set());
 
   const serverTypes = useServerTypes().list;
@@ -320,6 +322,12 @@ export default function InventoryPage() {
                     >
                       {s.websites?.length || 0} sites
                     </button>
+                    <button
+                      onClick={() => setAppsServer(s)}
+                      className="text-xs text-accent hover:underline"
+                    >
+                      {s.apps?.length || 0} apps
+                    </button>
                     {isEditorOrAdmin() && (
                       <>
                         <Button size="sm" variant="ghost" onClick={() => setEditServer(s)}>Edit</Button>
@@ -376,20 +384,26 @@ export default function InventoryPage() {
                   )}
                 </div>
 
-                {s.websites && s.websites.length > 0 && (
+                {s.apps && s.apps.length > 0 && (
                   <div className="border-t border-border pt-2 mt-2">
-                    <span className="text-text-secondary text-xs">Websites & Apps</span>
+                    <span className="text-text-secondary text-xs">Applications</span>
                     <div className="flex flex-wrap gap-1.5 mt-1">
-                      {s.websites.map((w) => (
-                        <a
-                          key={w.id}
-                          href={w.domain.startsWith("http") ? w.domain : `https://${w.domain}`}
-                          target="_blank"
-                          rel="noopener"
-                          className="text-xs bg-surface-hover text-accent hover:bg-accent/20 px-2 py-0.5 rounded transition-colors"
-                        >
-                          {w.domain}{w.application ? ` (${w.application})` : ""}
-                        </a>
+                      {s.apps.map((app) => (
+                        <div key={app.id} className="inline-flex flex-col gap-0.5">
+                          <span className="text-xs bg-surface-hover text-text-primary px-2 py-0.5 rounded">
+                            {app.appName}
+                          </span>
+                          {app.url && (
+                            <a
+                              href={app.url.startsWith("http") ? app.url : `https://${app.url}`}
+                              target="_blank"
+                              rel="noopener"
+                              className="text-[10px] text-accent hover:underline px-2"
+                            >
+                              {app.url}
+                            </a>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -449,6 +463,14 @@ export default function InventoryPage() {
           open={!!websiteServer}
           server={websiteServer}
           onClose={() => setWebsiteServer(null)}
+        />
+      )}
+
+      {appsServer && (
+        <ServerAppsModal
+          open={!!appsServer}
+          server={appsServer}
+          onClose={() => setAppsServer(null)}
         />
       )}
     </>

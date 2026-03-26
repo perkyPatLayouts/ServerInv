@@ -39,6 +39,7 @@ export interface Server {
   osVersion?: string | null;
   osVariant?: string | null;
   websites?: Website[];
+  apps?: ServerApp[];
 }
 
 export interface Website {
@@ -47,6 +48,21 @@ export interface Website {
   domain: string;
   application: string | null;
   notes: string | null;
+}
+
+export interface App {
+  id: number;
+  name: string;
+  notes: string | null;
+}
+
+export interface ServerApp {
+  id: number;
+  serverId: number;
+  appId: number;
+  url: string | null;
+  appName?: string;
+  appNotes?: string | null;
 }
 
 export interface Currency { id: number; code: string; name: string; symbol: string; }

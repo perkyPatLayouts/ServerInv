@@ -6,7 +6,7 @@ const navItems = [
   { to: "/renewals", label: "Renewals" },
   { to: "/currencies", label: "Currencies" },
   { to: "/cpu-types", label: "CPUs" },
-  { to: "/websites", label: "Websites & Apps" },
+  { to: "/websites", label: "Applications" },
   { to: "/providers", label: "Providers" },
   { to: "/locations", label: "Locations" },
   { to: "/datacenters", label: "Datacenters" },
