@@ -45,7 +45,14 @@ function getDockerContainer(): string {
     { stdio: "pipe" }
   ).toString().trim();
   if (!out) throw new Error("No running PostgreSQL Docker container found");
-  return out.split("\n")[0];
+
+  // Look for ServerInv container specifically (contains "serverinv" in name)
+  const containers = out.split("\n");
+  const serverinvContainer = containers.find(name => name.toLowerCase().includes("serverinv"));
+  if (serverinvContainer) return serverinvContainer;
+
+  // Fallback to first container (for backward compatibility)
+  return containers[0];
 }
 
 /** GET /api/backup/download — create pg_dump and stream to browser */
