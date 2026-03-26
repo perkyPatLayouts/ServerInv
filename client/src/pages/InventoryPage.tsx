@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ColumnDef } from "@tanstack/react-table";
-import { useServers, useServerTypes, useProviders, useLocations, useCurrencies, useCpuTypes, useOperatingSystems } from "../api/hooks";
+import { useServers, useServerTypes, useProviders, useLocations, useCurrencies, useCpuTypes, useOperatingSystems, useApps } from "../api/hooks";
 import { useAuthStore } from "../stores/authStore";
 import { Server } from "../types";
 import DataTable from "../components/ui/DataTable";
@@ -65,6 +65,7 @@ export default function InventoryPage() {
   const currencies = useCurrencies().list;
   const cpuTypes = useCpuTypes().list;
   const operatingSystems = useOperatingSystems().list;
+  const apps = useApps().list;
 
   // Build unique datacenter options from locations (datacenter -> locationIds)
   const datacenterOptions = useMemo(() => {
@@ -115,12 +116,16 @@ export default function InventoryPage() {
   // Datacenter filter uses string names mapped to locationIds
   const [dcSelected, setDcSelected] = useState<Set<number>>(() => new Set());
 
+  // Applications filter (many-to-many relationship)
+  const [appsSelected, setAppsSelected] = useState<Set<number>>(() => new Set());
+
   const clearFilters = useCallback(() => {
     setFilters({});
     setDcSelected(new Set());
+    setAppsSelected(new Set());
   }, []);
 
-  const activeFilterCount = Object.values(filters).reduce((acc, s) => acc + s.size, 0) + dcSelected.size;
+  const activeFilterCount = Object.values(filters).reduce((acc, s) => acc + s.size, 0) + dcSelected.size + appsSelected.size;
 
   // Filter data
   const filteredData = useMemo(() => {
@@ -143,8 +148,14 @@ export default function InventoryPage() {
       });
       data = data.filter((s) => s.locationId != null && dcLocationIds.has(s.locationId));
     }
+    // Applications filter: check if server has any of the selected apps
+    if (appsSelected.size > 0) {
+      data = data.filter((s) =>
+        s.apps && s.apps.some((app) => appsSelected.has(app.appId))
+      );
+    }
     return data;
-  }, [list.data, filters, dcSelected, datacenterOptions]);
+  }, [list.data, filters, dcSelected, appsSelected, datacenterOptions]);
 
   const columns = useMemo<ColumnDef<Server, any>[]>(() => [
     { accessorKey: "name", header: "Name" },
@@ -284,6 +295,12 @@ export default function InventoryPage() {
           options={(operatingSystems.data || []).map((o) => ({ value: o.id, label: `${o.name} ${o.version}` }))}
           selected={filters.osId || new Set()}
           onChange={(s) => updateFilter("osId", s)}
+        />
+        <MultiSelect
+          label="Applications"
+          options={(apps.data || []).map((a) => ({ value: a.id, label: a.name }))}
+          selected={appsSelected}
+          onChange={setAppsSelected}
         />
         {activeFilterCount > 0 && (
           <button

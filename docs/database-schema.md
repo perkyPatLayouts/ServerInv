@@ -35,18 +35,28 @@ PostgreSQL 16. All tables use auto-incrementing `serial` primary keys.
 │ cpu_type_id (FK) ────────────────────────► cpu_types    │
 │ os_id (FK) ──────────────────────────────► operating_   │
 │ notes                                        systems    │
-└──────────────────────────┬──────────────────────────────┘
-                           │ CASCADE DELETE
-                           ▼
-                ┌─────────────────────┐
-                │  server_websites    │
-                │─────────────────────│
-                │ id (PK)             │
-                │ server_id (FK)      │
-                │ domain              │
-                │ application         │
-                │ notes               │
-                └─────────────────────┘
+└────────┬──────────────┬──────────────────────────────────┘
+         │ CASCADE      │ CASCADE
+         │ DELETE       │ DELETE
+         ▼              ▼
+┌────────────────┐   ┌─────────────────────┐
+│ server_apps    │   │  server_websites    │ (LEGACY)
+│────────────────│   │─────────────────────│
+│ id (PK)        │   │ id (PK)             │
+│ server_id (FK) │   │ server_id (FK)      │
+│ app_id (FK) ───┼───┼─► domain            │
+│ url            │   │ application         │
+└────────┬───────┘   │ notes               │
+         │           └─────────────────────┘
+         │
+         ▼
+┌────────────────┐
+│     apps       │
+│────────────────│
+│ id (PK)        │
+│ name (UNIQUE)  │
+│ notes          │
+└────────────────┘
 
 ┌──────────────┐  ┌──────────────────┐  ┌──────────────────┐
 │ currencies   │  │   cpu_types      │  │operating_systems │
@@ -106,9 +116,32 @@ The core entity. All foreign key columns are nullable.
 | os_id | integer | FK → operating_systems | Operating system |
 | notes | varchar(32000) | | Free-text notes |
 
-### server_websites
+### apps
 
-Websites/applications hosted on a server. Cascade-deleted when parent server is removed.
+Global applications that can be associated with multiple servers via many-to-many relationship.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | serial | PK | |
+| name | varchar(200) | NOT NULL, UNIQUE | Application name |
+| notes | varchar(32000) | | Free-text notes |
+
+### server_apps
+
+Many-to-many junction table connecting servers to applications. Each pairing can have an optional URL.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | serial | PK | |
+| server_id | integer | FK → servers, NOT NULL, CASCADE | Parent server |
+| app_id | integer | FK → apps, NOT NULL, CASCADE | Application |
+| url | varchar(500) | | Optional URL for this app on this server |
+
+### server_websites (LEGACY)
+
+Legacy one-to-many relationship for websites hosted on a server. Cascade-deleted when parent server is removed.
+
+**Note:** New deployments should use the `apps` and `server_apps` tables instead for better flexibility.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
@@ -192,9 +225,14 @@ Websites/applications hosted on a server. Cascade-deleted when parent server is 
 | id | serial | PK | |
 | username | varchar(100) | NOT NULL, UNIQUE | Login username |
 | password | varchar(255) | NOT NULL | bcrypt hash |
-| role | varchar(20) | NOT NULL, DEFAULT 'viewer' | admin or viewer |
+| role | varchar(20) | NOT NULL, DEFAULT 'viewer' | admin, editor, or viewer |
 | created_at | timestamp | NOT NULL, DEFAULT now() | |
 | updated_at | timestamp | NOT NULL, DEFAULT now() | |
+
+**Roles:**
+- `admin`: Full CRUD + user management + backup/restore
+- `editor`: Data editing (servers, apps, entities) but no user/backup management
+- `viewer`: Read-only access
 
 ### backup_config
 

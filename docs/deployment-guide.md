@@ -1,5 +1,35 @@
 # ServerInv Deployment Guide
 
+## Deployment Options
+
+ServerInv supports two deployment environments:
+
+### 🖥️ VPS/Dedicated Server (This Guide)
+
+- **Best for**: Production use, large teams, high traffic
+- **Requirements**: Root access, Ubuntu/Debian server
+- **Backup method**: Native pg_dump (fast)
+- **Performance**: Dedicated resources
+- **Setup time**: ~15 minutes
+- **Cost**: ~$5-20/month
+
+**Continue reading below for VPS deployment.**
+
+### 🌐 Shared Hosting (cPanel/DirectAdmin)
+
+- **Best for**: Personal use, small teams, budget-conscious
+- **Requirements**: cPanel or DirectAdmin, PostgreSQL support
+- **Backup method**: Pure Node.js (slower but functional)
+- **Performance**: Shared resources
+- **Setup time**: ~15 minutes
+- **Cost**: ~$3-10/month
+
+**👉 [Read the Shared Hosting Deployment Guide](./shared-hosting-guide.md)**
+
+---
+
+## VPS/Dedicated Server Deployment
+
 Deploy ServerInv on a fresh Ubuntu 24.04 or Debian 12 VPS.
 
 ## Prerequisites
@@ -11,7 +41,7 @@ Deploy ServerInv on a fresh Ubuntu 24.04 or Debian 12 VPS.
 
 ## Quick Deploy (Automated)
 
-The `deploy/setup.sh` script handles everything automatically:
+The `deploy/setup.sh` script handles everything automatically with interactive prompts:
 
 ```bash
 # Clone or upload the project to the server
@@ -22,15 +52,35 @@ cd /tmp/serverinv
 sudo bash deploy/setup.sh
 ```
 
-The script will:
-1. Install Node.js 20.x, PostgreSQL, and nginx
-2. Create a `serverinv` system user
-3. Create the PostgreSQL database with a random password
-4. Copy the app to `/opt/serverinv`
-5. Generate `.env` with database URL and JWT secret
-6. Install dependencies and build the frontend
-7. Run database migrations and seed default data
-8. Configure systemd service and nginx reverse proxy
+### Interactive Setup
+
+The script will prompt you for:
+
+1. **Domain name** - The domain where ServerInv will be accessible (e.g., `serverinv.example.com`)
+2. **Web server choice** - Nginx or Apache (detects existing installations and warns about conflicts)
+3. **Confirmation** - If existing configurations might be replaced
+
+### What the Script Does
+
+1. Detects existing Nginx/Apache installations
+2. Installs Node.js 20.x, PostgreSQL, and chosen web server (if needed)
+3. Creates a `serverinv` system user
+4. Creates the PostgreSQL database with a random password
+5. Copies the app to `/opt/serverinv`
+6. Generates `.env` with database URL and JWT secret
+7. Installs dependencies and builds the frontend
+8. Runs database migrations and seed default data
+9. Configures systemd service for auto-start
+10. Configures chosen web server (Nginx or Apache) as reverse proxy
+11. Obtains SSL certificate via Let's Encrypt
+
+### Multiple Sites Support
+
+The script is designed to work alongside other sites:
+- Won't disable default site if other sites exist
+- Detects domain conflicts before proceeding
+- Creates site-specific configuration files
+- Preserves existing web server configurations
 
 On completion it prints the app URL, database password, and JWT secret. **Save these values.**
 
@@ -119,12 +169,14 @@ sudo -u serverinv npx tsx src/db/seed.ts
 > `db:migrate` to apply them.
 
 This creates the database tables and seeds:
-- Admin user: `admin` / `admin`
+- Admin user: `admin` / `admin` (role: admin)
 - Currencies: USD, EUR, GBP
 - Server types: VPS, Dedicated, Shared
 - Operating systems: Ubuntu 24.04, Ubuntu 22.04, Debian 12, Debian 11, CentOS 9, AlmaLinux 9
 - Billing periods: Hourly, Monthly, Quarterly, Yearly, 2 Yearly, 3 Yearly
 - Payment methods: PayPal, Credit Card, Cash, Digital Currency
+
+**Note:** Change the default admin password immediately after first login!
 
 ### 9. Configure systemd Service
 
@@ -171,14 +223,26 @@ sudo systemctl restart serverinv    # Restart
 sudo journalctl -u serverinv -f     # View logs
 ```
 
-### 10. Configure nginx
+### 10. Configure Web Server
 
-Copy the config:
+Choose either Nginx (recommended) or Apache.
+
+#### Option A: Nginx
+
+Copy and configure:
 
 ```bash
 sudo cp /opt/serverinv/deploy/serverinv.nginx /etc/nginx/sites-available/serverinv
+
+# Edit the file and replace server_name _ with your domain
+sudo nano /etc/nginx/sites-available/serverinv
+
+# Enable the site
 sudo ln -sf /etc/nginx/sites-available/serverinv /etc/nginx/sites-enabled/serverinv
-sudo rm -f /etc/nginx/sites-enabled/default
+
+# Only remove default if this is the only site
+# sudo rm -f /etc/nginx/sites-enabled/default
+
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
@@ -210,21 +274,92 @@ How it works:
 - Serves the built React frontend from `/opt/serverinv/client/dist`
 - Proxies `/api/` requests to the Node.js backend on port 3000
 - Falls back to `index.html` for client-side routing
+- Increased timeout (300s) for backup/restore operations
 
 If using a domain name, replace `server_name _;` with `server_name yourdomain.com;`.
+
+#### Option B: Apache
+
+Enable required modules and configure:
+
+```bash
+# Enable required modules
+sudo a2enmod proxy proxy_http rewrite ssl headers
+
+# Copy and configure
+sudo cp /opt/serverinv/deploy/serverinv.apache /etc/apache2/sites-available/serverinv.conf
+
+# Edit the file and replace yourdomain.com with your actual domain
+sudo nano /etc/apache2/sites-available/serverinv.conf
+
+# Enable the site
+sudo a2ensite serverinv.conf
+
+# Only disable default if this is the only site
+# sudo a2dissite 000-default.conf
+
+sudo apachectl configtest && sudo systemctl reload apache2
+```
+
+The Apache config (`deploy/serverinv.apache`):
+
+```apache
+<VirtualHost *:80>
+    ServerName yourdomain.com
+
+    DocumentRoot /opt/serverinv/client/dist
+
+    ProxyTimeout 300
+
+    ProxyPreserveHost On
+    ProxyPass /api http://127.0.0.1:3000/api
+    ProxyPassReverse /api http://127.0.0.1:3000/api
+
+    <Directory /opt/serverinv/client/dist>
+        Options -Indexes +FollowSymLinks
+        AllowOverride None
+        Require all granted
+
+        RewriteEngine On
+        RewriteBase /
+        RewriteRule ^index\.html$ - [L]
+        RewriteCond %{REQUEST_FILENAME} !-f
+        RewriteCond %{REQUEST_FILENAME} !-d
+        RewriteRule . /index.html [L]
+    </Directory>
+
+    ErrorLog ${APACHE_LOG_DIR}/serverinv-error.log
+    CustomLog ${APACHE_LOG_DIR}/serverinv-access.log combined
+</VirtualHost>
+```
+
+How it works:
+- Serves the built React frontend from `/opt/serverinv/client/dist`
+- Proxies `/api/` requests to the Node.js backend on port 3000
+- Rewrites URLs for client-side routing
+- Increased timeout (300s) for backup/restore operations
 
 ---
 
 ## HTTPS with Certbot
+
+### For Nginx
 
 ```bash
 sudo apt-get install -y certbot python3-certbot-nginx
 sudo certbot --nginx -d yourdomain.com
 ```
 
+### For Apache
+
+```bash
+sudo apt-get install -y certbot python3-certbot-apache
+sudo certbot --apache -d yourdomain.com
+```
+
 Certbot will:
 - Obtain a Let's Encrypt certificate
-- Modify the nginx config for SSL
+- Modify the web server config for SSL
 - Set up automatic renewal via a systemd timer
 
 Verify auto-renewal:
@@ -353,13 +488,26 @@ cat /opt/serverinv/server/.env
 sudo -u serverinv psql "postgres://serverinv:password@localhost:5432/serverinv" -c "SELECT 1;"
 ```
 
-### nginx returns 502 Bad Gateway
+### Web server returns 502 Bad Gateway (Nginx) or 503 Service Unavailable (Apache)
 
 The backend isn't running or isn't listening on port 3000:
 
 ```bash
 sudo systemctl status serverinv
 curl http://127.0.0.1:3000/api/auth/login  # Should return 400, not connection refused
+```
+
+For Apache-specific issues:
+
+```bash
+# Check Apache logs
+sudo tail -f /var/log/apache2/serverinv-error.log
+
+# Verify proxy modules are enabled
+sudo apache2ctl -M | grep proxy
+
+# Test configuration
+sudo apachectl configtest
 ```
 
 ### Frontend shows blank page

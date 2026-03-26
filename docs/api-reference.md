@@ -8,7 +8,7 @@ All endpoints except `/api/auth/login` require a valid JWT in the `Authorization
 Authorization: Bearer <token>
 ```
 
-Endpoints that create, update, or delete data require the **admin** role.
+Endpoints that create, update, or delete data require the **admin** or **editor** role (except user management and backups, which require **admin** only).
 
 ---
 
@@ -53,7 +53,7 @@ List all servers with joined fields (provider name, location, CPU, OS, websites,
 
 **Response (200):** Array of Server objects with joined fields.
 
-### POST /api/servers (admin)
+### POST /api/servers (admin/editor)
 
 Create a new server.
 
@@ -81,25 +81,114 @@ Create a new server.
 
 All fields except `name` are optional (nullable).
 
-### PUT /api/servers/:id (admin)
+### PUT /api/servers/:id (admin/editor)
 
 Update an existing server. Same body as POST.
 
-### DELETE /api/servers/:id (admin)
+### DELETE /api/servers/:id (admin/editor)
 
 Delete a server and all its associated websites (cascade).
 
 ---
 
-## Websites
+## Applications
 
-Websites are nested under servers.
+Global applications with many-to-many relationships to servers.
+
+### GET /api/apps
+
+List all applications.
+
+**Response (200):**
+```json
+[
+  { "id": 1, "name": "WordPress Blog", "notes": "Main company blog application" }
+]
+```
+
+### POST /api/apps (admin/editor)
+
+**Request body:**
+```json
+{
+  "name": "WordPress Blog",
+  "notes": "Main company blog application"
+}
+```
+
+`notes` is optional. `name` must be unique.
+
+### PUT /api/apps/:id (admin/editor)
+
+Update an application. Same body as POST.
+
+### DELETE /api/apps/:id (admin/editor)
+
+Delete an application and all its server associations (via server_apps junction table).
+
+---
+
+## Server Applications (Junction)
+
+Manage many-to-many relationships between servers and applications.
+
+### GET /api/servers/:serverId/apps
+
+List all applications associated with a server, including optional URLs.
+
+**Response (200):**
+```json
+[
+  {
+    "id": 1,
+    "serverId": 5,
+    "appId": 2,
+    "appName": "WordPress Blog",
+    "url": "https://blog.example.com"
+  }
+]
+```
+
+### POST /api/servers/:serverId/apps (admin/editor)
+
+Associate an application with a server.
+
+**Request body:**
+```json
+{
+  "appId": 2,
+  "url": "https://blog.example.com"
+}
+```
+
+`url` is optional.
+
+### PUT /api/servers/:serverId/apps/:id (admin/editor)
+
+Update the URL for a server-app association.
+
+**Request body:**
+```json
+{
+  "url": "https://new-blog.example.com"
+}
+```
+
+### DELETE /api/servers/:serverId/apps/:id (admin/editor)
+
+Remove an application association from a server (does not delete the application itself).
+
+---
+
+## Websites (Legacy)
+
+Legacy one-to-many websites nested under servers. New deployments should use Applications instead.
 
 ### GET /api/servers/:serverId/websites
 
 List all websites for a server.
 
-### POST /api/servers/:serverId/websites (admin)
+### POST /api/servers/:serverId/websites (admin/editor)
 
 **Request body:**
 ```json
@@ -112,11 +201,11 @@ List all websites for a server.
 
 `application` and `notes` are optional.
 
-### PUT /api/servers/:serverId/websites/:id (admin)
+### PUT /api/servers/:serverId/websites/:id (admin/editor)
 
 Update a website. Same body as POST.
 
-### DELETE /api/servers/:serverId/websites/:id (admin)
+### DELETE /api/servers/:serverId/websites/:id (admin/editor)
 
 Delete a website.
 
@@ -135,15 +224,15 @@ List all currencies.
 ]
 ```
 
-### POST /api/currencies (admin)
+### POST /api/currencies (admin/editor)
 
 ```json
 { "code": "USD", "name": "US Dollar", "symbol": "$" }
 ```
 
-### PUT /api/currencies/:id (admin)
+### PUT /api/currencies/:id (admin/editor)
 
-### DELETE /api/currencies/:id (admin)
+### DELETE /api/currencies/:id (admin/editor)
 
 ---
 
@@ -163,7 +252,7 @@ List all currencies.
 ]
 ```
 
-### POST /api/providers (admin)
+### POST /api/providers (admin/editor)
 
 ```json
 {
@@ -175,9 +264,9 @@ List all currencies.
 
 `siteUrl` and `controlPanelUrl` are optional.
 
-### PUT /api/providers/:id (admin)
+### PUT /api/providers/:id (admin/editor)
 
-### DELETE /api/providers/:id (admin)
+### DELETE /api/providers/:id (admin/editor)
 
 ---
 
@@ -192,7 +281,7 @@ List all currencies.
 ]
 ```
 
-### POST /api/locations (admin)
+### POST /api/locations (admin/editor)
 
 ```json
 { "city": "Amsterdam", "country": "Netherlands", "datacenter": "AMS1" }
@@ -200,9 +289,9 @@ List all currencies.
 
 `datacenter` is optional.
 
-### PUT /api/locations/:id (admin)
+### PUT /api/locations/:id (admin/editor)
 
-### DELETE /api/locations/:id (admin)
+### DELETE /api/locations/:id (admin/editor)
 
 ---
 
@@ -217,15 +306,15 @@ List all currencies.
 ]
 ```
 
-### POST /api/cpu-types (admin)
+### POST /api/cpu-types (admin/editor)
 
 ```json
 { "type": "Intel Xeon E-2388G", "cores": 8, "speed": "3.20" }
 ```
 
-### PUT /api/cpu-types/:id (admin)
+### PUT /api/cpu-types/:id (admin/editor)
 
-### DELETE /api/cpu-types/:id (admin)
+### DELETE /api/cpu-types/:id (admin/editor)
 
 ---
 
@@ -240,15 +329,15 @@ List all currencies.
 ]
 ```
 
-### POST /api/os (admin)
+### POST /api/os (admin/editor)
 
 ```json
 { "name": "Ubuntu", "version": "24.04", "variant": "server" }
 ```
 
-### PUT /api/os/:id (admin)
+### PUT /api/os/:id (admin/editor)
 
-### DELETE /api/os/:id (admin)
+### DELETE /api/os/:id (admin/editor)
 
 ---
 
@@ -263,15 +352,15 @@ List all currencies.
 ]
 ```
 
-### POST /api/server-types (admin)
+### POST /api/server-types (admin/editor)
 
 ```json
 { "name": "VPS" }
 ```
 
-### PUT /api/server-types/:id (admin)
+### PUT /api/server-types/:id (admin/editor)
 
-### DELETE /api/server-types/:id (admin)
+### DELETE /api/server-types/:id (admin/editor)
 
 ---
 

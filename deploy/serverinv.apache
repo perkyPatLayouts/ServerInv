@@ -1,0 +1,31 @@
+<VirtualHost *:80>
+    ServerName yourdomain.com
+
+    DocumentRoot /opt/serverinv/client/dist
+
+    # Increase timeout for backup/restore operations
+    ProxyTimeout 300
+
+    # Proxy API requests to backend
+    ProxyPreserveHost On
+    ProxyPass /api http://127.0.0.1:3000/api
+    ProxyPassReverse /api http://127.0.0.1:3000/api
+
+    # Serve static files
+    <Directory /opt/serverinv/client/dist>
+        Options -Indexes +FollowSymLinks
+        AllowOverride None
+        Require all granted
+
+        # Rewrite for client-side routing
+        RewriteEngine On
+        RewriteBase /
+        RewriteRule ^index\.html$ - [L]
+        RewriteCond %{REQUEST_FILENAME} !-f
+        RewriteCond %{REQUEST_FILENAME} !-d
+        RewriteRule . /index.html [L]
+    </Directory>
+
+    ErrorLog ${APACHE_LOG_DIR}/serverinv-error.log
+    CustomLog ${APACHE_LOG_DIR}/serverinv-access.log combined
+</VirtualHost>

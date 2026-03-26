@@ -1,6 +1,6 @@
 # ServerInv Documentation
 
-ServerInv is a web application for maintaining an inventory of VPS, Shared, and Bare Metal hosting servers. It tracks server specs, providers, costs, renewals, and hosted websites/applications.
+ServerInv is a web application for maintaining an inventory of VPS, Shared, and Bare Metal hosting servers. It tracks server specs, providers, costs, renewals, hosted websites (legacy), and applications (new many-to-many relationship).
 
 ## Documentation Index
 
@@ -10,7 +10,9 @@ ServerInv is a web application for maintaining an inventory of VPS, Shared, and 
 | [Developer Guide](developer-guide.md) | Developers | Architecture, codebase, and local development |
 | [API Reference](api-reference.md) | Developers | REST API endpoints and payloads |
 | [Database Schema](database-schema.md) | Developers | Tables, columns, and relationships |
-| [Deployment Guide](deployment-guide.md) | DevOps / Sysadmins | Deploying to a fresh Ubuntu/Debian VPS |
+| [Deployment Guide](deployment-guide.md) | DevOps / Sysadmins | Deploying to a VPS/dedicated server |
+| [Shared Hosting Guide](shared-hosting-guide.md) | DevOps / Sysadmins | Deploying to cPanel/DirectAdmin hosting |
+| [Security](SECURITY.md) | All | Security measures and best practices |
 
 ## Quick Start (Local Development)
 

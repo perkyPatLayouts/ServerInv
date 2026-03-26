@@ -45,7 +45,8 @@ ServerInv/
 │   │   ├── pages/
 │   │   │   ├── InventoryPage.tsx       # Main server inventory with filters
 │   │   │   ├── RenewalsPage.tsx        # Renewal date tracking
-│   │   │   ├── WebsitesPage.tsx        # All websites with CRUD
+│   │   │   ├── ApplicationsPage.tsx    # Applications management (many-to-many)
+│   │   │   ├── WebsitesPage.tsx        # Legacy websites (one-to-many)
 │   │   │   ├── ServerUrlsPage.tsx      # Server URL listing
 │   │   │   ├── ServerIpsPage.tsx       # Server IP listing
 │   │   │   ├── ProvidersPage.tsx       # Provider management
@@ -54,6 +55,8 @@ ServerInv/
 │   │   │   ├── LocationsPage.tsx       # Location management
 │   │   │   ├── DatacentersPage.tsx     # Datacenter management
 │   │   │   ├── ServerTypesPage.tsx     # Server type management
+│   │   │   ├── BillingPeriodsPage.tsx  # Billing period management
+│   │   │   ├── PaymentMethodsPage.tsx  # Payment method management
 │   │   │   ├── OperatingSystemsPage.tsx # OS management
 │   │   │   ├── UsersPage.tsx           # User management (admin)
 │   │   │   ├── BackupPage.tsx          # Backup/restore (admin)
@@ -74,6 +77,8 @@ ServerInv/
 │   │   │   ├── schema/                 # Drizzle table definitions
 │   │   │   │   ├── servers.ts
 │   │   │   │   ├── serverWebsites.ts
+│   │   │   │   ├── apps.ts
+│   │   │   │   ├── serverApps.ts
 │   │   │   │   ├── providers.ts
 │   │   │   │   ├── locations.ts
 │   │   │   │   ├── currencies.ts
@@ -93,13 +98,17 @@ ServerInv/
 │   │   ├── routes/
 │   │   │   ├── auth.ts                 # POST /api/auth/login
 │   │   │   ├── servers.ts              # CRUD /api/servers
-│   │   │   ├── websites.ts             # CRUD /api/servers/:id/websites
+│   │   │   ├── apps.ts                 # CRUD /api/apps
+│   │   │   ├── serverApps.ts           # CRUD /api/servers/:id/apps
+│   │   │   ├── websites.ts             # CRUD /api/servers/:id/websites (legacy)
 │   │   │   ├── currencies.ts           # CRUD /api/currencies
 │   │   │   ├── locations.ts            # CRUD /api/locations
 │   │   │   ├── providers.ts            # CRUD /api/providers
 │   │   │   ├── cpuTypes.ts             # CRUD /api/cpu-types
 │   │   │   ├── operatingSystems.ts      # CRUD /api/os
 │   │   │   ├── serverTypes.ts          # CRUD /api/server-types
+│   │   │   ├── billingPeriods.ts       # CRUD /api/billing-periods
+│   │   │   ├── paymentMethods.ts       # CRUD /api/payment-methods
 │   │   │   ├── users.ts               # CRUD /api/users
 │   │   │   └── backup.ts              # Backup config + export/restore
 │   │   ├── utils/

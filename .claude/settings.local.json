@@ -14,7 +14,16 @@
       "Bash(npx tsc:*)",
       "Bash(find:*)",
       "Bash(grep:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(ls:*)",
+      "Bash(node --version:*)",
+      "Bash(npm --version:*)",
+      "Bash(test:*)",
+      "Bash(PGPASSWORD=serverinv psql:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Bash(chmod:*)",
+      "Bash(git add:*)"
     ]
   }
 }

@@ -4,6 +4,8 @@ import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import multer, { FileFilterCallback } from "multer";
+import { PgBackupService } from "../services/pgBackupService.js";
+import { pool } from "../db/index.js";
 
 const router = Router();
 
@@ -50,26 +52,37 @@ function getDockerContainer(): string {
 router.get("/download", requireAdmin, async (_req: Request, res: Response) => {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const filename = `serverinv-backup-${timestamp}.sql`;
-  const tmpFile = path.join("/tmp", filename);
+  const tmpDir = process.env.TMP_DIR || "/tmp";
+  const tmpFile = path.join(tmpDir, filename);
 
   try {
     const dbUrl = process.env.DATABASE_URL!;
+    const usePgDump = commandExists("pg_dump") || commandExists("docker");
 
-    if (commandExists("pg_dump")) {
-      // Use DATABASE_URL directly - pg_dump handles it safely
-      execSync(`pg_dump "${dbUrl}" > "${tmpFile}"`, {
-        env: { ...process.env },
-        shell: '/bin/bash'
-      });
+    if (usePgDump) {
+      // Fast path: Use native pg_dump (VPS environments)
+      if (commandExists("pg_dump")) {
+        // Use DATABASE_URL directly - pg_dump handles it safely
+        execSync(`pg_dump "${dbUrl}" > "${tmpFile}"`, {
+          env: { ...process.env },
+          shell: '/bin/bash'
+        });
+      } else {
+        const db = parseDbUrl(dbUrl);
+        const container = getDockerContainer();
+        // Security: Use environment variable for password instead of command-line argument
+        // This prevents password exposure in process list and command injection
+        execSync(
+          `docker exec -i -e PGPASSWORD='${db.password.replace(/'/g, "'\\''")}' ${container} pg_dump -U ${db.user} -h localhost ${db.database} > "${tmpFile}"`,
+          { env: { ...process.env }, shell: '/bin/bash' }
+        );
+      }
     } else {
-      const db = parseDbUrl(dbUrl);
-      const container = getDockerContainer();
-      // Security: Use environment variable for password instead of command-line argument
-      // This prevents password exposure in process list and command injection
-      execSync(
-        `docker exec -i -e PGPASSWORD='${db.password.replace(/'/g, "'\\''")}' ${container} pg_dump -U ${db.user} -h localhost ${db.database} > "${tmpFile}"`,
-        { env: { ...process.env }, shell: '/bin/bash' }
-      );
+      // Pure Node.js backup (shared hosting environments)
+      console.log("Using pure Node.js backup (pg_dump not available)");
+      const backupService = new PgBackupService(pool);
+      const sql = await backupService.generateBackup();
+      fs.writeFileSync(tmpFile, sql, "utf8");
     }
 
     res.setHeader("Content-Type", "application/sql");
@@ -105,26 +118,36 @@ router.post("/restore", requireAdmin, upload.single("backup"), async (req: Reque
   const tmpFile = file.path;
   try {
     const dbUrl = process.env.DATABASE_URL!;
+    const usePsql = commandExists("psql") || commandExists("docker");
 
-    if (commandExists("psql")) {
-      execSync(`psql "${dbUrl}" < "${tmpFile}"`, {
-        stdio: "pipe",
-        env: { ...process.env },
-        shell: '/bin/bash'
-      });
-    } else {
-      const db = parseDbUrl(dbUrl);
-      const container = getDockerContainer();
-      // Security: Use environment variable for password instead of command-line argument
-      // Escape single quotes in password to prevent injection
-      execSync(
-        `docker exec -i -e PGPASSWORD='${db.password.replace(/'/g, "'\\''")}' ${container} psql -U ${db.user} -h localhost ${db.database} < "${tmpFile}"`,
-        {
-          stdio: ["pipe", "pipe", "pipe"],
+    if (usePsql) {
+      // Fast path: Use native psql (VPS environments)
+      if (commandExists("psql")) {
+        execSync(`psql "${dbUrl}" < "${tmpFile}"`, {
+          stdio: "pipe",
           env: { ...process.env },
           shell: '/bin/bash'
-        }
-      );
+        });
+      } else {
+        const db = parseDbUrl(dbUrl);
+        const container = getDockerContainer();
+        // Security: Use environment variable for password instead of command-line argument
+        // Escape single quotes in password to prevent injection
+        execSync(
+          `docker exec -i -e PGPASSWORD='${db.password.replace(/'/g, "'\\''")}' ${container} psql -U ${db.user} -h localhost ${db.database} < "${tmpFile}"`,
+          {
+            stdio: ["pipe", "pipe", "pipe"],
+            env: { ...process.env },
+            shell: '/bin/bash'
+          }
+        );
+      }
+    } else {
+      // Pure Node.js restore (shared hosting environments)
+      console.log("Using pure Node.js restore (psql not available)");
+      const backupService = new PgBackupService(pool);
+      const sql = fs.readFileSync(tmpFile, "utf8");
+      await backupService.restoreBackup(sql);
     }
 
     fs.unlinkSync(tmpFile);

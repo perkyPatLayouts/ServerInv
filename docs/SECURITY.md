@@ -27,9 +27,10 @@ All CRITICAL and HIGH severity issues have been addressed. Medium and low priori
 
 **✅ Role-Based Access Control**
 - **Admin**: Full system access including user management and backup/restore
-- **Editor**: Data editing (servers, apps, entities) but no user/backup management
-- **Viewer**: Read-only access
+- **Editor**: Data editing powers (CRUD on servers, apps, and all entities) but no user management or backup access
+- **Viewer**: Read-only access to all data
 - Middleware enforces permissions on all routes
+- Three-tier permission model ensures principle of least privilege
 
 ### 2. API Security
 

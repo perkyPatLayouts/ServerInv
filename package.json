@@ -1,6 +1,7 @@
 {
   "name": "serverinv",
   "version": "1.0.0",
+  "description": "Server inventory management system with applications tracking",
   "private": true,
   "workspaces": [
     "client",
