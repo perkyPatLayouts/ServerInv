@@ -1,5 +1,5 @@
 import { pgTable, serial, varchar, integer } from "drizzle-orm/pg-core";
-import { servers } from "./servers";
+import { servers } from "./servers.js";
 
 export const serverWebsites = pgTable("server_websites", {
   id: serial("id").primaryKey(),

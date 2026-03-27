@@ -94,7 +94,14 @@ Default login: `admin` / `admin`
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y curl nginx postgresql postgresql-contrib
+sudo apt-get install -y curl nginx
+
+# Choose your database:
+# Option A: PostgreSQL (Recommended)
+sudo apt-get install -y postgresql postgresql-contrib
+
+# Option B: MySQL/MariaDB
+sudo apt-get install -y mariadb-server
 ```
 
 ### 2. Install Node.js 20.x
@@ -111,12 +118,24 @@ node --version  # Should show v20.x
 sudo useradd --system --create-home --shell /bin/bash serverinv
 ```
 
-### 4. Set Up PostgreSQL
+### 4. Set Up Database
+
+**Option A: PostgreSQL (Recommended)**
 
 ```bash
 # Create database user and database
 sudo -u postgres psql -c "CREATE USER serverinv WITH PASSWORD 'your-secure-password';"
 sudo -u postgres createdb -O serverinv serverinv
+```
+
+**Option B: MySQL/MariaDB**
+
+```bash
+# Create database user and database
+sudo mysql -e "CREATE DATABASE serverinv;"
+sudo mysql -e "CREATE USER 'serverinv'@'localhost' IDENTIFIED BY 'your-secure-password';"
+sudo mysql -e "GRANT ALL PRIVILEGES ON serverinv.* TO 'serverinv'@'localhost';"
+sudo mysql -e "FLUSH PRIVILEGES;"
 ```
 
 ### 5. Deploy Application Files
@@ -130,11 +149,20 @@ sudo chown -R serverinv:serverinv /opt/serverinv
 ### 6. Configure Environment
 
 ```bash
+# Choose the appropriate DATABASE_URL for your database type:
+# PostgreSQL:
 sudo tee /opt/serverinv/.env > /dev/null << EOF
 DATABASE_URL=postgres://serverinv:your-secure-password@localhost:5432/serverinv
 JWT_SECRET=$(openssl rand -hex 32)
 PORT=3000
 EOF
+
+# MySQL:
+# sudo tee /opt/serverinv/.env > /dev/null << EOF
+# DATABASE_URL=mysql://serverinv:your-secure-password@localhost:3306/serverinv
+# JWT_SECRET=$(openssl rand -hex 32)
+# PORT=3000
+# EOF
 
 sudo cp /opt/serverinv/.env /opt/serverinv/server/.env
 sudo chown serverinv:serverinv /opt/serverinv/.env /opt/serverinv/server/.env
@@ -142,7 +170,7 @@ sudo chown serverinv:serverinv /opt/serverinv/.env /opt/serverinv/server/.env
 
 | Variable | Description |
 |----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string |
+| `DATABASE_URL` | Database connection string (postgres:// or mysql://) - auto-detects type |
 | `JWT_SECRET` | Random secret for signing JWTs (minimum 32 hex chars) |
 | `PORT` | Backend listen port (default `3000`) |
 
@@ -194,7 +222,7 @@ The service file (`deploy/serverinv.service`):
 ```ini
 [Unit]
 Description=ServerInv Backend
-After=network.target postgresql.service
+After=network.target postgresql.service mysql.service
 
 [Service]
 Type=simple
@@ -210,7 +238,7 @@ WantedBy=multi-user.target
 ```
 
 Key features:
-- Starts after PostgreSQL is ready
+- Starts after database service (PostgreSQL or MySQL) is ready
 - Runs as the `serverinv` user
 - Restarts automatically on crash (5-second delay)
 - Starts on boot via `WantedBy=multi-user.target`

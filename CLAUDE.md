@@ -8,10 +8,11 @@ ServerInv is a web application for maintaining an inventory of VPS, Shared, and 
 
 ## Tech Stack
 
-- **Frontend**: React + TypeScript + Vite + Tailwind CSS
-- **Backend**: Node.js (Express or similar)
-- **Database**: PostgreSQL
-- **Deployment target**: Ubuntu Server 24.04 or Debian
+- **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS 4
+- **Backend**: Node.js + Express + TypeScript
+- **Database**: PostgreSQL 16+ or MySQL 8+/MariaDB 10+ (auto-detected from DATABASE_URL)
+- **ORM**: Drizzle ORM with dual schema architecture (postgres/ and mysql/ directories)
+- **Deployment target**: Ubuntu Server 24.04, Debian 12, or shared hosting (cPanel/DirectAdmin)
 
 ## Code Style
 
@@ -55,19 +56,40 @@ Inventory, Renewals, Currencies, CPUs, Applications, Providers, Locations, Serve
 
 ### Backup System
 
-- Admin-invokable backup/restore from within the app
-- Backup method: SFTP of zipped database dump to offsite server
+- **Browser-based backup/restore** - Admin-invokable from within the app
+- **Database-agnostic** - Pure Node.js implementation works with both PostgreSQL and MySQL
+  - PostgreSQL: Uses `pgBackupService.ts` (no pg_dump required)
+  - MySQL: Uses `mysqlBackupService.ts` (no mysqldump required)
+- **Deployment flexibility**:
+  - VPS: Fast native backups with pg_dump/mysqldump (optional)
+  - Shared hosting: Pure Node.js backups (slower but no shell access needed)
+- **Export format**: Standard SQL dump files (.sql)
+- **Optional offsite backup**: SFTP upload to remote server
 
 ## Deployment
 
-- Target: fresh Ubuntu or Debian VPS, non-root user with sudo
-- Must include: full deployment instructions, auto-start after reboot/updates, offsite backup server setup
-- **Security Requirements**:
-  - Strong JWT_SECRET (generate with `openssl rand -base64 32`)
-  - Unique database credentials (not defaults)
-  - CORS properly configured for production domain
-  - SSL/TLS enabled via certbot
-  - Change default admin password immediately after first login
+ServerInv supports two deployment scenarios:
+
+### VPS/Dedicated Server Deployment
+- **Target**: Fresh Ubuntu 24.04 or Debian 12 VPS with root/sudo access
+- **Database**: PostgreSQL (recommended) or MySQL/MariaDB
+- **Web Server**: Nginx (recommended) or Apache
+- **Automated script**: `deploy/setup.sh` with interactive prompts
+- **Features**: Fast native backups, systemd service, full control
+
+### Shared Hosting Deployment
+- **Target**: cPanel or DirectAdmin hosting account
+- **Database**: MySQL/MariaDB (typical) or PostgreSQL
+- **Web Server**: Apache, LiteSpeed, or compatible (with .htaccess support)
+- **Automated script**: `deploy/setup-shared.sh` with control panel detection
+- **Features**: No root access needed, pure Node.js backups, budget-friendly
+
+### Security Requirements (Both Deployments)
+- Strong JWT_SECRET (generate with `openssl rand -base64 32`)
+- Unique database credentials (not defaults)
+- CORS properly configured for production domain
+- SSL/TLS enabled (Let's Encrypt via certbot or control panel)
+- Change default admin password immediately after first login
 
 ## Security
 

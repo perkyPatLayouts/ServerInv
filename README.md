@@ -18,7 +18,7 @@ A web application for managing VPS, Shared, and Bare Metal server inventory. Tra
 
 - **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS 4
 - **Backend**: Node.js + Express + TypeScript
-- **Database**: PostgreSQL 16 + Drizzle ORM
+- **Database**: PostgreSQL 16+ or MySQL 8+/MariaDB 10+ + Drizzle ORM
 - **Auth**: JWT with bcrypt password hashing
 - **Security**: Helmet.js, CORS, input validation (Zod)
 

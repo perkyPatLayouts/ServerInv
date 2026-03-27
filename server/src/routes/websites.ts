@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/index.js";
-import { serverWebsites } from "../db/schema/serverWebsites.js";
+import { serverWebsites } from "../db/schema/index.js";
 import { validate } from "../middleware/validate.js";
 import { requireEditorOrAdmin } from "../middleware/auth.js";
 

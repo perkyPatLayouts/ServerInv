@@ -35,8 +35,14 @@ cd /tmp/serverinv
 sudo bash deploy/setup.sh
 ```
 
+The script will prompt you for:
+- [ ] Domain name
+- [ ] Web server choice (Nginx or Apache)
+- [ ] Database type (PostgreSQL or MySQL)
+
 ### 3. Save Generated Credentials
 The setup script will display:
+- [ ] Database type selected - **NOTE THIS**
 - [ ] Database password - **SAVE THIS**
 - [ ] JWT secret - **SAVE THIS**
 - [ ] Application URL
@@ -128,7 +134,10 @@ sudo journalctl -u serverinv -n 100 --no-pager
 cat /opt/serverinv/server/.env
 
 # Test database connection
+# PostgreSQL:
 sudo -u serverinv psql "$DATABASE_URL" -c "SELECT 1;"
+# MySQL:
+# mysql -u serverinv -p serverinv -e "SELECT 1;"
 
 # Check file permissions
 sudo chown -R serverinv:serverinv /opt/serverinv

@@ -2,18 +2,20 @@ import { Router, Request, Response } from "express";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/index.js";
-import { servers } from "../db/schema/servers.js";
-import { serverWebsites } from "../db/schema/serverWebsites.js";
-import { serverApps } from "../db/schema/serverApps.js";
-import { apps } from "../db/schema/apps.js";
-import { serverTypes } from "../db/schema/serverTypes.js";
-import { providers } from "../db/schema/providers.js";
-import { locations } from "../db/schema/locations.js";
-import { currencies } from "../db/schema/currencies.js";
-import { cpuTypes } from "../db/schema/cpuTypes.js";
-import { operatingSystems } from "../db/schema/operatingSystems.js";
-import { billingPeriods } from "../db/schema/billingPeriods.js";
-import { paymentMethods } from "../db/schema/paymentMethods.js";
+import {
+  servers,
+  serverWebsites,
+  serverApps,
+  apps,
+  serverTypes,
+  providers,
+  locations,
+  currencies,
+  cpuTypes,
+  operatingSystems,
+  billingPeriods,
+  paymentMethods
+} from "../db/schema/index.js";
 import { validate } from "../middleware/validate.js";
 import { requireEditorOrAdmin } from "../middleware/auth.js";
 
@@ -120,7 +122,7 @@ router.get("/", async (_req: Request, res: Response) => {
     appMap.get(a.serverId)!.push(a);
   }
 
-  const result = rows.map((r) => ({
+  const result = rows.map((r: any) => ({
     ...r,
     websites: websiteMap.get(r.id) || [],
     apps: appMap.get(r.id) || []

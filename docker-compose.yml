@@ -1,4 +1,5 @@
 services:
+  # PostgreSQL (default - recommended)
   postgres:
     image: postgres:16-alpine
     environment:
@@ -10,5 +11,34 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  # MySQL (alternative - uncomment to use)
+  # mysql:
+  #   image: mysql:8
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: root
+  #     MYSQL_DATABASE: serverinv
+  #     MYSQL_USER: serverinv
+  #     MYSQL_PASSWORD: serverinv
+  #   ports:
+  #     - "3306:3306"
+  #   volumes:
+  #     - mysqldata:/var/lib/mysql
+  #   command: --default-authentication-plugin=mysql_native_password
+
+  # MariaDB (alternative - uncomment to use)
+  # mariadb:
+  #   image: mariadb:10
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: root
+  #     MYSQL_DATABASE: serverinv
+  #     MYSQL_USER: serverinv
+  #     MYSQL_PASSWORD: serverinv
+  #   ports:
+  #     - "3306:3306"
+  #   volumes:
+  #     - mariadbdata:/var/lib/mysql
+
 volumes:
   pgdata:
+  # mysqldata:
+  # mariadbdata:

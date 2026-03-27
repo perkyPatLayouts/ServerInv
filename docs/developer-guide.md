@@ -10,9 +10,9 @@
 | Tables | TanStack React Table |
 | Routing | React Router v7 |
 | Backend | Node.js, Express 4, TypeScript |
-| Database | PostgreSQL 16, Drizzle ORM |
+| Database | PostgreSQL 16 or MySQL 8+/MariaDB 10+, Drizzle ORM |
 | Auth | JWT (jsonwebtoken), bcryptjs |
-| Backup | Browser download/upload (multer for file handling) |
+| Backup | Browser download/upload (multer for file handling), database-agnostic |
 
 ## Project Structure
 
@@ -75,22 +75,19 @@ ServerInv/
 │   ├── src/
 │   │   ├── db/
 │   │   │   ├── schema/                 # Drizzle table definitions
-│   │   │   │   ├── servers.ts
-│   │   │   │   ├── serverWebsites.ts
-│   │   │   │   ├── apps.ts
-│   │   │   │   ├── serverApps.ts
-│   │   │   │   ├── providers.ts
-│   │   │   │   ├── locations.ts
-│   │   │   │   ├── currencies.ts
-│   │   │   │   ├── cpuTypes.ts
-│   │   │   │   ├── operatingSystems.ts
-│   │   │   │   ├── serverTypes.ts
-│   │   │   │   ├── users.ts
-│   │   │   │   ├── backupConfig.ts
-│   │   │   │   └── index.ts
-│   │   │   ├── index.ts                # Database connection pool
-│   │   │   ├── migrate.ts              # Migration runner
-│   │   │   └── seed.ts                 # Initial data seeder
+│   │   │   │   ├── postgres/           # PostgreSQL schemas
+│   │   │   │   │   ├── servers.ts
+│   │   │   │   │   ├── apps.ts
+│   │   │   │   │   └── ... (all tables)
+│   │   │   │   ├── mysql/              # MySQL schemas
+│   │   │   │   │   ├── servers.ts
+│   │   │   │   │   ├── apps.ts
+│   │   │   │   │   └── ... (all tables)
+│   │   │   │   └── index.ts            # Auto-detects and exports correct schema
+│   │   │   ├── index.ts                # Database connection pool (auto-detects type)
+│   │   │   ├── utils.ts                # Database detection utilities
+│   │   │   ├── migrate.ts              # Migration runner (auto-selects dialect)
+│   │   │   └── seed.ts                 # Initial data seeder (database-agnostic)
 │   │   ├── middleware/
 │   │   │   ├── auth.ts                 # JWT authentication + admin guard
 │   │   │   ├── errorHandler.ts         # Global error handler
@@ -111,12 +108,17 @@ ServerInv/
 │   │   │   ├── paymentMethods.ts       # CRUD /api/payment-methods
 │   │   │   ├── users.ts               # CRUD /api/users
 │   │   │   └── backup.ts              # Backup config + export/restore
+│   │   ├── services/                  # Business logic services
+│   │   │   ├── pgBackupService.ts     # PostgreSQL backup/restore (pure Node.js)
+│   │   │   └── mysqlBackupService.ts  # MySQL backup/restore (pure Node.js)
 │   │   ├── utils/
 │   │   │   ├── jwt.ts                 # Token sign/verify
 │   │   │   └── password.ts            # bcrypt hash/compare
 │   │   └── index.ts                   # Express app entry point
 │   ├── drizzle/                       # Generated migration SQL
-│   ├── drizzle.config.ts
+│   │   ├── postgres/                  # PostgreSQL migrations
+│   │   └── mysql/                     # MySQL migrations
+│   ├── drizzle.config.ts              # Drizzle config (multi-driver support)
 │   └── tsconfig.json
 ├── deploy/
 │   ├── setup.sh                       # Automated deployment script
@@ -133,25 +135,29 @@ ServerInv/
 ### Prerequisites
 
 - Node.js 20+
-- Docker (for PostgreSQL) or a local PostgreSQL 16 instance
+- Docker (for PostgreSQL) or a local PostgreSQL 16+ / MySQL 8+ / MariaDB 10+ instance
 
 ### Steps
 
 ```bash
-# Start PostgreSQL
+# Start PostgreSQL (or MySQL)
 docker compose up -d
 
 # Create environment files
 cp .env.example .env
 cp .env server/.env
 
+# Edit server/.env and set DATABASE_URL:
+# PostgreSQL: postgres://user:pass@localhost:5432/serverinv
+# MySQL: mysql://user:pass@localhost:3306/serverinv
+
 # Install all dependencies (workspaces)
 npm install
 
-# Generate migrations (if schema changed)
+# Generate migrations (if schema changed - runs for detected database type)
 npm run db:generate
 
-# Run migrations
+# Run migrations (auto-detects database type from DATABASE_URL)
 npm run db:migrate
 
 # Seed default data (admin user, currencies, server types, OS entries)
@@ -160,6 +166,8 @@ npm run db:seed
 # Start both frontend and backend in dev mode
 npm run dev
 ```
+
+**Note**: The system automatically detects the database type from the `DATABASE_URL` protocol (`postgres://` or `mysql://`) and uses the appropriate schema and migrations.
 
 - Frontend: http://localhost:5173 (Vite with HMR, proxies `/api` to backend)
 - Backend: http://localhost:3000

@@ -23,7 +23,24 @@
       "Bash(lsof:*)",
       "Bash(xargs kill:*)",
       "Bash(chmod:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(node:*)",
+      "Bash(git restore:*)",
+      "Bash(docker ps:*)",
+      "Bash(git rm:*)",
+      "Bash(DATABASE_URL=mysql://dummy:dummy@localhost:3306/dummy npm run db:generate:*)",
+      "Bash(npm run build:*)",
+      "Bash(git checkout:*)",
+      "Bash(psql:*)",
+      "Bash(xargs ps:*)",
+      "Bash(docker run:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker stop:*)",
+      "Bash(docker rm:*)",
+      "Bash(README.md:*)",
+      "Bash(DEPLOYMENT.md:*)"
     ]
   }
 }

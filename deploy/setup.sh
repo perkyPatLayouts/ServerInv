@@ -230,14 +230,32 @@ elif [ "$WEB_SERVER" = "apache" ]; then
 fi
 
 echo ""
+echo "==> Database Selection"
+echo "PostgreSQL is recommended for VPS deployments."
+echo "  1) PostgreSQL (recommended)"
+echo "  2) MySQL/MariaDB"
+read -rp "Select database [1-2] (default: 1): " DB_CHOICE
+DB_CHOICE=${DB_CHOICE:-1}
+
+echo ""
 echo "==> Installing system packages"
 apt-get update
 
-# Install web server if needed
-if [ "$WEB_SERVER" = "nginx" ]; then
-  apt-get install -y curl nginx postgresql postgresql-contrib certbot python3-certbot-nginx
-elif [ "$WEB_SERVER" = "apache" ]; then
-  apt-get install -y curl apache2 postgresql postgresql-contrib certbot python3-certbot-apache
+# Install web server and database
+if [ "$DB_CHOICE" == "2" ]; then
+  # MySQL installation
+  if [ "$WEB_SERVER" = "nginx" ]; then
+    apt-get install -y curl nginx mariadb-server certbot python3-certbot-nginx
+  elif [ "$WEB_SERVER" = "apache" ]; then
+    apt-get install -y curl apache2 mariadb-server certbot python3-certbot-apache
+  fi
+else
+  # PostgreSQL installation
+  if [ "$WEB_SERVER" = "nginx" ]; then
+    apt-get install -y curl nginx postgresql postgresql-contrib certbot python3-certbot-nginx
+  elif [ "$WEB_SERVER" = "apache" ]; then
+    apt-get install -y curl apache2 postgresql postgresql-contrib certbot python3-certbot-apache
+  fi
 fi
 
 echo "==> Installing Node.js 20.x"
@@ -249,11 +267,31 @@ fi
 echo "==> Creating app user"
 id -u $APP_USER &>/dev/null || useradd --system --create-home --shell /bin/bash $APP_USER
 
-echo "==> Setting up PostgreSQL"
-sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1 || \
-  sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';"
-sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1 || \
-  sudo -u postgres createdb -O $DB_USER $DB_NAME
+# Database setup
+if [ "$DB_CHOICE" == "2" ]; then
+  echo "==> Setting up MySQL/MariaDB"
+  systemctl enable mariadb
+  systemctl start mariadb
+
+  # Create database and user
+  mysql -e "CREATE DATABASE IF NOT EXISTS $DB_NAME;"
+  mysql -e "CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASS';"
+  mysql -e "GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'localhost';"
+  mysql -e "FLUSH PRIVILEGES;"
+
+  DATABASE_URL="mysql://$DB_USER:$DB_PASS@localhost:3306/$DB_NAME"
+else
+  echo "==> Setting up PostgreSQL"
+  systemctl enable postgresql
+  systemctl start postgresql
+
+  sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1 || \
+    sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';"
+  sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1 || \
+    sudo -u postgres createdb -O $DB_USER $DB_NAME
+
+  DATABASE_URL="postgres://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME"
+fi
 
 echo "==> Deploying application to $APP_DIR"
 if [ -d "$APP_DIR/.git" ]; then
@@ -274,7 +312,7 @@ fi
 
 echo "==> Creating .env"
 cat > $APP_DIR/.env << EOF
-DATABASE_URL=postgres://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
+DATABASE_URL=$DATABASE_URL
 JWT_SECRET=$JWT_SECRET
 PORT=3000
 ALLOWED_ORIGINS=https://$APP_DOMAIN,http://$APP_DOMAIN

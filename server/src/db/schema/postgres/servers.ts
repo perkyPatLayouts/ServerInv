@@ -1,12 +1,12 @@
 import { pgTable, serial, varchar, integer, decimal, date, boolean } from "drizzle-orm/pg-core";
-import { serverTypes } from "./serverTypes";
-import { providers } from "./providers";
-import { locations } from "./locations";
-import { currencies } from "./currencies";
-import { cpuTypes } from "./cpuTypes";
-import { operatingSystems } from "./operatingSystems";
-import { billingPeriods } from "./billingPeriods";
-import { paymentMethods } from "./paymentMethods";
+import { serverTypes } from "./serverTypes.js";
+import { providers } from "./providers.js";
+import { locations } from "./locations.js";
+import { currencies } from "./currencies.js";
+import { cpuTypes } from "./cpuTypes.js";
+import { operatingSystems } from "./operatingSystems.js";
+import { billingPeriods } from "./billingPeriods.js";
+import { paymentMethods } from "./paymentMethods.js";
 
 export const servers = pgTable("servers", {
   id: serial("id").primaryKey(),

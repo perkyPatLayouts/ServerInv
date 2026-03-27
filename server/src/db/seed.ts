@@ -1,85 +1,85 @@
 import "dotenv/config";
-import { drizzle } from "drizzle-orm/node-postgres";
-import pg from "pg";
 import bcrypt from "bcryptjs";
-import { users } from "./schema/users.js";
-import { currencies } from "./schema/currencies.js";
-import { serverTypes } from "./schema/serverTypes.js";
-import { operatingSystems } from "./schema/operatingSystems.js";
-import { billingPeriods } from "./schema/billingPeriods.js";
-import { paymentMethods } from "./schema/paymentMethods.js";
+import { db, pool, DB_TYPE } from "./index.js";
+import {
+  users,
+  currencies,
+  serverTypes,
+  operatingSystems,
+  billingPeriods,
+  paymentMethods
+} from "./schema/index.js";
+
+/**
+ * Helper to insert data with conflict handling for both databases
+ */
+async function insertIgnoreConflict(table: any, values: any) {
+  try {
+    if (DB_TYPE === 'postgres') {
+      await db.insert(table).values(values).onConflictDoNothing();
+    } else {
+      // MySQL: Try insert, catch duplicate errors
+      await db.insert(table).values(values);
+    }
+  } catch (e: any) {
+    // Ignore duplicate key errors (MySQL error code 1062, MariaDB ER_DUP_ENTRY)
+    if (e.errno === 1062 || e.code === 'ER_DUP_ENTRY') {
+      // Silently ignore
+    } else {
+      throw e;
+    }
+  }
+}
 
 async function main() {
-  const pool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL,
-  });
-  const db = drizzle(pool);
 
   console.log("Seeding database...");
 
   // Admin user
   const hash = await bcrypt.hash("admin", 10);
-  await db
-    .insert(users)
-    .values({ username: "admin", password: hash, role: "admin" })
-    .onConflictDoNothing();
+  await insertIgnoreConflict(users, { username: "admin", password: hash, role: "admin" });
 
   // Currencies
-  await db
-    .insert(currencies)
-    .values([
-      { code: "USD", name: "US Dollar", symbol: "$" },
-      { code: "EUR", name: "Euro", symbol: "€" },
-      { code: "GBP", name: "British Pound", symbol: "£" },
-    ])
-    .onConflictDoNothing();
+  await insertIgnoreConflict(currencies, [
+    { code: "USD", name: "US Dollar", symbol: "$" },
+    { code: "EUR", name: "Euro", symbol: "€" },
+    { code: "GBP", name: "British Pound", symbol: "£" },
+  ]);
 
   // Server types
-  await db
-    .insert(serverTypes)
-    .values([
-      { name: "VPS" },
-      { name: "Dedicated" },
-      { name: "Shared" },
-    ])
-    .onConflictDoNothing();
+  await insertIgnoreConflict(serverTypes, [
+    { name: "VPS" },
+    { name: "Dedicated" },
+    { name: "Shared" },
+  ]);
 
   // Common OS entries
-  await db
-    .insert(operatingSystems)
-    .values([
-      { name: "Ubuntu", version: "24.04", variant: "server" },
-      { name: "Ubuntu", version: "22.04", variant: "server" },
-      { name: "Debian", version: "12", variant: "server" },
-      { name: "Debian", version: "11", variant: "server" },
-      { name: "CentOS", version: "9", variant: "server" },
-      { name: "AlmaLinux", version: "9", variant: "server" },
-    ])
-    .onConflictDoNothing();
+  await insertIgnoreConflict(operatingSystems, [
+    { name: "Ubuntu", version: "24.04", variant: "server" },
+    { name: "Ubuntu", version: "22.04", variant: "server" },
+    { name: "Debian", version: "12", variant: "server" },
+    { name: "Debian", version: "11", variant: "server" },
+    { name: "CentOS", version: "9", variant: "server" },
+    { name: "AlmaLinux", version: "9", variant: "server" },
+  ]);
 
   // Billing periods
-  await db
-    .insert(billingPeriods)
-    .values([
-      { name: "Hourly" },
-      { name: "Monthly" },
-      { name: "Quarterly" },
-      { name: "Yearly" },
-      { name: "2 Yearly" },
-      { name: "3 Yearly" },
-    ])
-    .onConflictDoNothing();
+  await insertIgnoreConflict(billingPeriods, [
+    { name: "Hourly" },
+    { name: "Monthly" },
+    { name: "Quarterly" },
+    { name: "Yearly" },
+    { name: "2 Yearly" },
+    { name: "3 Yearly" },
+  ]);
 
   // Payment methods
-  await db
-    .insert(paymentMethods)
-    .values([
-      { name: "PayPal" },
-      { name: "Credit Card" },
-      { name: "Cash" },
-      { name: "Digital Currency" },
-    ])
-    .onConflictDoNothing();
+  await insertIgnoreConflict(paymentMethods, [
+    { name: "PayPal" },
+    { name: "Credit Card" },
+    { name: "Cash" },
+    { name: "Digital Currency" },
+  ]);
 
   console.log("Seed complete.");
   await pool.end();

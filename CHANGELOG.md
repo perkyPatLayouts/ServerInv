@@ -6,18 +6,87 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-03-27
+
 ### Added
-- **Applications Filter** - Added filter for Applications on Inventory page (many-to-many relationship)
-- **Web Server Choice** - Deployment script now supports both Nginx and Apache
-  - Interactive prompts ask which web server to use
+- **MySQL/MariaDB Support** - Full database flexibility
+  - Dual schema architecture with separate `postgres/` and `mysql/` directories
+  - Automatic database type detection from `DATABASE_URL` protocol
+  - Database-agnostic migrations and seeding
+  - Dual backup services: `pgBackupService.ts` and `mysqlBackupService.ts`
+  - Pure Node.js backup/restore (no shell commands required)
+  - Works on both VPS and shared hosting environments
+- **Shared Hosting Deployment** - Complete support for cPanel and DirectAdmin
+  - New `deploy/setup-shared.sh` automated deployment script
+  - Control panel auto-detection (cPanel or DirectAdmin)
+  - Pure Node.js backup system for shared hosting
+  - No root access required
+  - Budget-friendly deployment option ($3-10/month)
+- **LiteSpeed Optimization** - Enhanced performance for LiteSpeed web servers
+  - Auto-detection of LiteSpeed vs Apache
+  - Optimized `.htaccess` configuration with LiteSpeed-specific caching
+  - Static asset caching (1 year) with immutable headers
+  - SPA routing with cache prevention for index.html
+  - API proxy with no-cache headers
+  - Fallback configuration for standard Apache
+- **Applications Filter** - Added filter for Applications on Inventory page
+- **Web Server Choice** - VPS deployment script supports both Nginx and Apache
+  - Interactive prompts for web server selection
   - Detects existing installations and warns about conflicts
   - Works alongside other sites without breaking existing configurations
-  - Includes Apache configuration template
+  - Apache configuration template included
+- **Database Utilities** - New `server/src/db/utils.ts` for database detection
 
 ### Changed
-- Deployment script asks for domain name interactively
-- Web server configuration preserves existing sites on the server
-- Improved deployment documentation with Nginx and Apache instructions
+- **Deployment Scripts** - Major enhancements
+  - VPS script (`deploy/setup.sh`) now includes database selection (PostgreSQL or MySQL)
+  - Interactive domain name configuration
+  - Web server configuration preserves existing sites
+  - Improved error handling and validation
+- **Documentation** - Comprehensive updates
+  - All docs updated to reflect MySQL/MariaDB support
+  - New shared hosting deployment guide
+  - Updated developer guide with dual schema architecture
+  - Enhanced deployment guide with database options
+  - Updated security documentation
+  - Improved README files with database selection info
+- **Environment Configuration** - Enhanced `.env.example` files
+  - Clear documentation of database options
+  - Deployment type configuration (VPS or shared)
+  - Control panel configuration options
+  - Temporary directory configuration
+- **Docker Compose** - Added MySQL and MariaDB options
+  - PostgreSQL remains default
+  - Commented MySQL and MariaDB service definitions
+  - Easy switching between database types for local development
+- **Schema Organization** - Restructured database schemas
+  - Separate directories: `server/src/db/schema/postgres/` and `server/src/db/schema/mysql/`
+  - Auto-detection and export from `schema/index.ts`
+  - Separate migration directories: `server/drizzle/postgres/` and `server/drizzle/mysql/`
+- **Migration System** - Database-aware migrations
+  - `db:migrate` automatically detects and applies correct migrations
+  - `db:generate` creates migrations for detected database type
+  - No manual dialect selection required
+- **Backup System** - Database-agnostic implementation
+  - Automatic service selection based on database type
+  - Pure Node.js implementation for shared hosting compatibility
+  - Optional native tools (pg_dump/mysqldump) for VPS
+  - 5-10x faster backups on VPS, fully functional on shared hosting
+
+### Technical
+- Added `mysql2` package dependency
+- Added MySQL type definitions (`@types/mysql`)
+- Enhanced Drizzle config with multi-driver support
+- Improved seeding with database-specific conflict handling
+- Updated systemd service to wait for both PostgreSQL and MySQL
+
+### Documentation
+- New `docs/shared-hosting-guide.md` - Complete cPanel/DirectAdmin deployment guide
+- Updated `server/README.md` - Comprehensive with MySQL support
+- Simplified `server/DEPLOYMENT.md` - Now points to main docs
+- Updated all guides with database selection instructions
+- Enhanced CLAUDE.md with dual deployment scenarios
+- Updated SECURITY.md with database options
 
 ## [1.0.0] - 2026-03-26
 
@@ -75,5 +144,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+[1.1.0]: https://github.com/yourusername/serverinv/releases/tag/v1.1.0
 [1.0.0]: https://github.com/yourusername/serverinv/releases/tag/v1.0.0
 [0.1.0]: https://github.com/yourusername/serverinv/releases/tag/v0.1.0

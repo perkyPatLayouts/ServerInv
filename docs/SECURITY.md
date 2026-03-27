@@ -87,7 +87,10 @@ Create `.env` file in `server/` directory:
 
 ```bash
 # Database connection (use strong password, not defaults!)
+# PostgreSQL:
 DATABASE_URL=postgres://username:strong_password@localhost:5432/serverinv
+# or MySQL:
+# DATABASE_URL=mysql://username:strong_password@localhost:3306/serverinv
 
 # JWT secret (CRITICAL - generate with: openssl rand -base64 32)
 JWT_SECRET=your_very_strong_random_secret_here

@@ -89,31 +89,108 @@ while [ -z "$DOMAIN" ]; do
   read -rp "Domain name: " DOMAIN
 done
 
-read -rp "PostgreSQL database name: " DB_NAME
-while [ -z "$DB_NAME" ]; do
-  echo -e "${RED}Database name is required${NC}"
-  read -rp "PostgreSQL database name: " DB_NAME
-done
-
-read -rp "PostgreSQL username: " DB_USER
-while [ -z "$DB_USER" ]; do
-  echo -e "${RED}Username is required${NC}"
-  read -rp "PostgreSQL username: " DB_USER
-done
-
-read -rsp "PostgreSQL password: " DB_PASS
 echo ""
-while [ -z "$DB_PASS" ]; do
-  echo -e "${RED}Password is required${NC}"
+echo "=========================================="
+echo "  Database Selection"
+echo "=========================================="
+echo ""
+echo "  1) PostgreSQL (recommended)"
+echo "  2) MySQL/MariaDB (if PostgreSQL unavailable)"
+echo ""
+read -rp "Select database [1-2] (default: 1): " DB_CHOICE
+DB_CHOICE=${DB_CHOICE:-1}
+
+if [ "$DB_CHOICE" == "2" ]; then
+  # MySQL setup
+  echo ""
+  echo "MySQL/MariaDB Setup Instructions:"
+  if [ "$PANEL" == "cpanel" ]; then
+    echo "  1. Log into cPanel"
+    echo "  2. Go to 'MySQL Databases'"
+    echo "  3. Create a database (e.g., serverinv)"
+    echo "  4. Create a user with a strong password"
+    echo "  5. Grant ALL privileges to the user on the database"
+  else
+    echo "  1. Log into DirectAdmin"
+    echo "  2. Go to 'MySQL Management'"
+    echo "  3. Create a database and user"
+    echo "  4. Grant all privileges"
+  fi
+
+  echo ""
+  read -rp "MySQL database name: " DB_NAME
+  while [ -z "$DB_NAME" ]; do
+    echo -e "${RED}Database name is required${NC}"
+    read -rp "MySQL database name: " DB_NAME
+  done
+
+  read -rp "MySQL username: " DB_USER
+  while [ -z "$DB_USER" ]; do
+    echo -e "${RED}Username is required${NC}"
+    read -rp "MySQL username: " DB_USER
+  done
+
+  read -rsp "MySQL password: " DB_PASS
+  echo ""
+  while [ -z "$DB_PASS" ]; do
+    echo -e "${RED}Password is required${NC}"
+    read -rsp "MySQL password: " DB_PASS
+    echo ""
+  done
+
+  read -rp "MySQL host [localhost]: " DB_HOST
+  DB_HOST=${DB_HOST:-localhost}
+
+  read -rp "MySQL port [3306]: " DB_PORT
+  DB_PORT=${DB_PORT:-3306}
+
+  DATABASE_URL="mysql://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+else
+  # PostgreSQL setup
+  echo ""
+  echo "PostgreSQL Setup Instructions:"
+  if [ "$PANEL" == "cpanel" ]; then
+    echo "  1. Log into cPanel"
+    echo "  2. Go to 'PostgreSQL Databases'"
+    echo "  3. Create a database (e.g., serverinv)"
+    echo "  4. Create a user with a strong password"
+    echo "  5. Grant ALL privileges to the user on the database"
+  else
+    echo "  1. Log into DirectAdmin"
+    echo "  2. Go to 'PostgreSQL Management'"
+    echo "  3. Create a database and user"
+    echo "  4. Grant all privileges"
+  fi
+
+  echo ""
+  read -rp "PostgreSQL database name: " DB_NAME
+  while [ -z "$DB_NAME" ]; do
+    echo -e "${RED}Database name is required${NC}"
+    read -rp "PostgreSQL database name: " DB_NAME
+  done
+
+  read -rp "PostgreSQL username: " DB_USER
+  while [ -z "$DB_USER" ]; do
+    echo -e "${RED}Username is required${NC}"
+    read -rp "PostgreSQL username: " DB_USER
+  done
+
   read -rsp "PostgreSQL password: " DB_PASS
   echo ""
-done
+  while [ -z "$DB_PASS" ]; do
+    echo -e "${RED}Password is required${NC}"
+    read -rsp "PostgreSQL password: " DB_PASS
+    echo ""
+  done
 
-read -rp "PostgreSQL host [localhost]: " DB_HOST
-DB_HOST=${DB_HOST:-localhost}
+  read -rp "PostgreSQL host [localhost]: " DB_HOST
+  DB_HOST=${DB_HOST:-localhost}
 
-read -rp "PostgreSQL port [5432]: " DB_PORT
-DB_PORT=${DB_PORT:-5432}
+  read -rp "PostgreSQL port [5432]: " DB_PORT
+  DB_PORT=${DB_PORT:-5432}
+
+  DATABASE_URL="postgres://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+fi
 
 # Determine app directory (default to home)
 APP_DIR="$HOME/serverinv"
@@ -162,7 +239,7 @@ echo -e "${GREEN}✓ JWT secret generated${NC}"
 echo -e "${BLUE}Creating environment configuration...${NC}"
 cat > "$APP_DIR/server/.env" << EOF
 # Database Configuration
-DATABASE_URL=postgres://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/$DB_NAME
+DATABASE_URL=$DATABASE_URL
 
 # Security
 JWT_SECRET=$JWT_SECRET

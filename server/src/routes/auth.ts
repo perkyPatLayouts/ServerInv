@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/index.js";
-import { users } from "../db/schema/users.js";
+import { users } from "../db/schema/index.js";
 import { comparePassword } from "../utils/password.js";
 import { signToken } from "../utils/jwt.js";
 import { validate } from "../middleware/validate.js";

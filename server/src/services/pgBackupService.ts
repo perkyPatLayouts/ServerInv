@@ -135,7 +135,7 @@ export class PgBackupService {
     `, [tableName]);
 
     if (pkResult.rows.length > 0) {
-      const pkColumns = pkResult.rows.map((r) => `"${r.attname}"`).join(", ");
+      const pkColumns = pkResult.rows.map((r: any) => `"${r.attname}"`).join(", ");
       sql += `ALTER TABLE "${tableName}" ADD PRIMARY KEY (${pkColumns});\n\n`;
     }
 
@@ -194,8 +194,8 @@ export class PgBackupService {
       ORDER BY ordinal_position
     `, [tableName]);
 
-    const columns = columnsResult.rows;
-    const columnNames = columns.map((c) => `"${c.column_name}"`).join(", ");
+    const columns = columnsResult.rows as any[];
+    const columnNames = columns.map((c: any) => `"${c.column_name}"`).join(", ");
 
     // Fetch data in batches
     const BATCH_SIZE = 1000;
@@ -207,7 +207,7 @@ export class PgBackupService {
       );
 
       for (const row of dataResult.rows) {
-        const values = columns.map((col) => {
+        const values = columns.map((col: any) => {
           const value = row[col.column_name];
           return this.escapeValue(value, col.data_type);
         }).join(", ");

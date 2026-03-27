@@ -1,6 +1,12 @@
 # ServerInv Database Schema
 
-PostgreSQL 16. All tables use auto-incrementing `serial` primary keys.
+ServerInv supports both PostgreSQL 16+ and MySQL 8+/MariaDB 10+. All tables use auto-incrementing integer primary keys (`serial` for PostgreSQL, `INT AUTO_INCREMENT` for MySQL).
+
+**Database Type Detection**: The system automatically detects the database type from the `DATABASE_URL` protocol:
+- `postgres://` or `postgresql://` → PostgreSQL
+- `mysql://` → MySQL/MariaDB
+
+The appropriate schema and migrations are used based on the detected type.
 
 ## Entity Relationship Diagram
 

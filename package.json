@@ -1,7 +1,7 @@
 {
   "name": "serverinv",
-  "version": "1.0.0",
-  "description": "Server inventory management system with applications tracking",
+  "version": "1.1.0",
+  "description": "Server inventory management system with applications tracking and dual database support (PostgreSQL/MySQL)",
   "private": true,
   "workspaces": [
     "client",
