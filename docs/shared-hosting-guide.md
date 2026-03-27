@@ -24,7 +24,7 @@ This guide covers deploying ServerInv to shared hosting environments running cPa
 - **Control Panel**: cPanel 11.110+ or DirectAdmin 1.60+
 - **Web Server**: Apache, LiteSpeed, or compatible (reads .htaccess files)
 - **Node.js**: Version 20 or higher
-- **PostgreSQL**: Version 12 or higher
+- **Database**: MySQL 8+ / MariaDB 10+ (recommended) or PostgreSQL 12+ (if available)
 - **Disk Space**: ~200MB for application + database space
 - **Memory**: Minimum 512MB available
 - **Shell Access**: SSH access required for deployment
@@ -33,9 +33,19 @@ This guide covers deploying ServerInv to shared hosting environments running cPa
 
 ### Database Requirements
 
-- PostgreSQL database with CREATE, DROP, INSERT, UPDATE, DELETE privileges
+Choose one of the following database options:
+
+**MySQL/MariaDB (Recommended for Shared Hosting)**
+- MySQL 8+ or MariaDB 10+ database
+- CREATE, DROP, INSERT, UPDATE, DELETE privileges
 - Ability to create tables, indexes, and foreign keys
+- Most commonly available on shared hosting
 - Remote access not required (localhost is fine)
+
+**PostgreSQL (Alternative if Available)**
+- PostgreSQL 12+ database
+- Same privileges as above
+- Less common on shared hosting but fully supported
 
 ### Technical Requirements
 
@@ -46,7 +56,27 @@ This guide covers deploying ServerInv to shared hosting environments running cPa
 
 ## Before You Begin
 
-### 1. Create PostgreSQL Database
+### 1. Create Database
+
+Choose MySQL/MariaDB (most common) or PostgreSQL (if available):
+
+#### Option A: MySQL/MariaDB (Recommended)
+
+**cPanel:**
+1. Log into cPanel
+2. Go to "MySQL Databases"
+3. Create new database (e.g., `username_serverinv`)
+4. Create new user with strong password
+5. Add user to database with ALL PRIVILEGES
+
+**DirectAdmin:**
+1. Log into DirectAdmin
+2. Go to "MySQL Management"
+3. Create new database
+4. Create new user with strong password
+5. Grant all privileges
+
+#### Option B: PostgreSQL (Alternative)
 
 **cPanel:**
 1. Log into cPanel
@@ -122,9 +152,10 @@ bash deploy/setup-shared.sh
 
 Follow the prompts:
 - **Domain name**: Your subdomain (e.g., `serverinv.yourdomain.com`)
-- **Database name**: Your PostgreSQL database name
-- **Database username**: Your PostgreSQL username
-- **Database password**: Your PostgreSQL password
+- **Database type**: Choose MySQL or PostgreSQL
+- **Database name**: Your database name (e.g., `username_serverinv`)
+- **Database username**: Your database username
+- **Database password**: Your database password
 - **App directory**: Leave default (`~/serverinv`) or customize
 
 ### Step 2: Register Node.js Application
@@ -478,7 +509,10 @@ Located in `~/serverinv/server/.env`:
 
 ```bash
 # Database (configured during deployment)
-DATABASE_URL=postgres://user:pass@localhost:5432/dbname
+# MySQL/MariaDB (most common on shared hosting):
+DATABASE_URL=mysql://user:pass@localhost:3306/dbname
+# PostgreSQL (alternative):
+# DATABASE_URL=postgres://user:pass@localhost:5432/dbname
 
 # Security (auto-generated)
 JWT_SECRET=<random-hex-string>
@@ -539,17 +573,31 @@ journalctl --user -u serverinv -n 50
 
 ### Cannot Connect to Database
 
+**Test MySQL Connection:**
 ```bash
-# Test database connection
+# Direct MySQL test
+mysql -u username -p database_name -e "SELECT 1;"
+
+# Or via Node.js
 cd ~/serverinv/server
-node -e "const pg = require('pg'); const pool = new pg.Pool({connectionString: process.env.DATABASE_URL}); pool.query('SELECT 1').then(() => {console.log('OK'); pool.end();}).catch(err => {console.error(err); process.exit(1);});"
+node -e "require('dotenv').config(); const mysql = require('mysql2/promise'); mysql.createConnection(process.env.DATABASE_URL).then(conn => {console.log('OK'); conn.end();}).catch(err => {console.error(err); process.exit(1);});"
+```
+
+**Test PostgreSQL Connection:**
+```bash
+# Direct PostgreSQL test
+psql "postgres://user:pass@localhost:5432/dbname" -c "SELECT 1;"
+
+# Or via Node.js
+cd ~/serverinv/server
+node -e "require('dotenv').config(); const pg = require('pg'); const pool = new pg.Pool({connectionString: process.env.DATABASE_URL}); pool.query('SELECT 1').then(() => {console.log('OK'); pool.end();}).catch(err => {console.error(err); process.exit(1);});"
 ```
 
 If fails:
-1. Verify database exists
+1. Verify database exists in control panel
 2. Verify user has correct permissions
-3. Check PostgreSQL is running
-4. Verify DATABASE_URL format
+3. Check database service is running
+4. Verify DATABASE_URL format matches your database type
 
 ### 502 Bad Gateway or API Errors
 
@@ -633,10 +681,9 @@ Consider VPS if:
 cd ~/serverinv
 tar -czf ~/serverinv-backup-$(date +%Y%m%d).tar.gz .
 
-# 2. Backup database
-# Use the in-app backup feature or:
-cd server
-npx tsx -e "import pg from 'pg'; import fs from 'fs'; import { PgBackupService } from './src/services/pgBackupService.js'; const pool = new pg.Pool({connectionString: process.env.DATABASE_URL}); const service = new PgBackupService(pool); service.generateBackup().then(sql => {fs.writeFileSync('backup.sql', sql); console.log('Done'); process.exit(0);});"
+# 2. Backup database using in-app feature
+# Login as admin and use the backup page
+# This is the easiest method and works with both MySQL and PostgreSQL
 
 # 3. Stop application
 # cPanel: Stop in "Setup Node.js App"
@@ -705,13 +752,33 @@ curl http://localhost:3000/api/health
 
 ### Command-Line Backup
 
+ServerInv automatically uses the correct backup service based on your database type.
+
+**For MySQL/MariaDB:**
 ```bash
 cd ~/serverinv/server
 
-# Using the backup service
-node -e "require('dotenv').config(); const {PgBackupService} = require('./dist/services/pgBackupService.js'); const pg = require('pg'); const pool = new pg.Pool({connectionString: process.env.DATABASE_URL}); const service = new PgBackupService(pool); service.generateBackup().then(sql => {require('fs').writeFileSync('backup.sql', sql); console.log('Done'); process.exit(0);});"
+# The application will automatically use mysqlBackupService
+# Best approach: Use the in-app backup feature (login as admin)
+# This ensures the correct service is used automatically
+```
 
-# Result: backup.sql in current directory
+**For PostgreSQL:**
+```bash
+cd ~/serverinv/server
+
+# The application will automatically use pgBackupService
+# Best approach: Use the in-app backup feature (login as admin)
+# This ensures the correct service is used automatically
+```
+
+**Manual backup (advanced users):**
+```bash
+# MySQL
+mysqldump -u username -p database_name > backup.sql
+
+# PostgreSQL
+pg_dump "postgres://user:pass@localhost:5432/dbname" > backup.sql
 ```
 
 ### Automated Backups
@@ -788,7 +855,7 @@ crontab -e
 A: Yes! Backup your database, deploy to VPS using `deploy/setup.sh`, then restore the backup.
 
 **Q: Can I use MySQL instead of PostgreSQL?**
-A: Not currently. ServerInv requires PostgreSQL for specific features.
+A: Yes! ServerInv v1.1.0+ supports both MySQL/MariaDB and PostgreSQL. MySQL is actually the recommended choice for shared hosting as it's more commonly available. The system automatically detects your database type from the DATABASE_URL.
 
 **Q: How many servers can I track?**
 A: On shared hosting, recommend <10,000 servers. For larger inventories, use VPS.
