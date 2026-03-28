@@ -218,7 +218,7 @@ Use `.env.example` as template.
 If you suspect a security breach:
 
 1. **Immediately**:
-   - Change all user passwords
+   - Change all user passwords (or reset admin credentials using the admin reset tool)
    - Generate new `JWT_SECRET` (invalidates all sessions)
    - Review application logs for suspicious activity
    - Check database for unauthorized changes
@@ -238,6 +238,26 @@ If you suspect a security breach:
    - Implement additional security controls
    - Review and update access controls
    - Train users on security best practices
+
+### Resetting Admin Credentials
+
+If admin access is compromised or lost, use the admin reset tool:
+
+**VPS/Dedicated Server:**
+```bash
+sudo bash /opt/serverinv/deploy/reset-admin.sh
+```
+
+**Shared Hosting or Manual:**
+```bash
+cd /opt/serverinv/server  # or ~/serverinv/server
+npx tsx src/db/reset-admin.ts <username> <password>
+```
+
+This tool will:
+- Create a new admin user if the username doesn't exist
+- Update the password and ensure admin role if the user exists
+- Work with both PostgreSQL and MySQL databases
 
 ---
 

@@ -705,12 +705,36 @@ cd ~/serverinv/client && npm run build
 cd ~/serverinv/server
 npx tsx src/db/migrate.ts
 
-# 8. Restart application
+# 8. (Optional) Reset admin credentials if needed
+# If you've lost access to your admin account, run:
+npx tsx src/db/reset-admin.ts your_username your_password
+# This will create a new admin user or update an existing one
+
+# 9. Restart application
 # cPanel: Start in "Setup Node.js App"
 # DirectAdmin: systemctl --user start serverinv
 
-# 9. Test
+# 10. Test
 curl http://localhost:3000/api/health
+```
+
+#### Resetting Admin Credentials
+
+If you've lost access to your admin account or need to update credentials:
+
+```bash
+cd ~/serverinv/server
+npx tsx src/db/reset-admin.ts <username> <password>
+```
+
+This will:
+- Create a new admin user if the username doesn't exist
+- Update the password and ensure admin role if the username already exists
+- Work with both PostgreSQL and MySQL databases
+
+Example:
+```bash
+npx tsx src/db/reset-admin.ts admin MyNewPassword123
 ```
 
 ### Maintenance Tasks

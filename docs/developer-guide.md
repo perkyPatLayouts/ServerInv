@@ -87,7 +87,8 @@ ServerInv/
 │   │   │   ├── index.ts                # Database connection pool (auto-detects type)
 │   │   │   ├── utils.ts                # Database detection utilities
 │   │   │   ├── migrate.ts              # Migration runner (auto-selects dialect)
-│   │   │   └── seed.ts                 # Initial data seeder (database-agnostic)
+│   │   │   ├── seed.ts                 # Initial data seeder (database-agnostic)
+│   │   │   └── reset-admin.ts          # Admin credential reset tool
 │   │   ├── middleware/
 │   │   │   ├── auth.ts                 # JWT authentication + admin guard
 │   │   │   ├── errorHandler.ts         # Global error handler
@@ -183,6 +184,32 @@ npm run dev
 | `npm run db:generate` | Generate Drizzle migration SQL from schema changes |
 | `npm run db:migrate` | Run pending database migrations |
 | `npm run db:seed` | Seed the database with initial data |
+
+### Database Utilities
+
+**Reset Admin Credentials**
+
+If you need to create or reset admin credentials during development or deployment:
+
+```bash
+cd server
+npx tsx src/db/reset-admin.ts <username> <password>
+```
+
+This utility:
+- Creates a new admin user if the username doesn't exist
+- Updates the password and ensures admin role if the user already exists
+- Works with both PostgreSQL and MySQL (auto-detected from DATABASE_URL)
+- Useful for recovering from lost admin access or setting up new deployments
+
+Example:
+```bash
+npx tsx src/db/reset-admin.ts admin MyNewPassword123
+```
+
+For production deployments, use the deployment scripts:
+- VPS: `sudo bash deploy/reset-admin.sh` (interactive)
+- Update script: Includes optional admin reset prompt
 
 ## Architecture Patterns
 

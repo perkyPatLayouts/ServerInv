@@ -435,7 +435,25 @@ This script will:
 3. Install any new dependencies
 4. Rebuild the frontend
 5. Run database migrations
-6. Restart the service and show its status
+6. **Optionally prompt you to create/update admin credentials** (recommended if login was lost)
+7. Restart the service and show its status
+
+#### Resetting Admin Credentials
+
+If you've lost access to your admin account or need to update credentials, you have two options:
+
+**Option 1: During update** - The update script will prompt you to create/update admin credentials.
+
+**Option 2: Standalone script** - Run the reset script at any time:
+
+```bash
+sudo bash /opt/serverinv/deploy/reset-admin.sh
+```
+
+Both methods will:
+- Create a new admin user if the username doesn't exist
+- Update the password and ensure admin role if the username already exists
+- Work with both PostgreSQL and MySQL databases
 
 ### Manual Update
 

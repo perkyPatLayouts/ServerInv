@@ -31,6 +31,30 @@ echo "==> Running database migrations"
 cd "$APP_DIR/server"
 sudo -u "$APP_USER" npx tsx src/db/migrate.ts
 
+# Optional: Reset admin credentials
+echo ""
+echo "==> Admin Credentials Management"
+read -p "Do you want to create/update admin login credentials? (y/N): " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+  read -p "Enter admin username: " admin_username
+  if [ -z "$admin_username" ]; then
+    echo "Error: Username cannot be empty. Skipping admin reset."
+  else
+    read -sp "Enter admin password: " admin_password
+    echo
+    if [ -z "$admin_password" ]; then
+      echo "Error: Password cannot be empty. Skipping admin reset."
+    elif [ ${#admin_password} -lt 4 ]; then
+      echo "Error: Password must be at least 4 characters. Skipping admin reset."
+    else
+      echo "Creating/updating admin user..."
+      sudo -u "$APP_USER" npx tsx src/db/reset-admin.ts "$admin_username" "$admin_password"
+    fi
+  fi
+fi
+
+echo ""
 echo "==> Restarting ServerInv service"
 systemctl start serverinv
 

@@ -115,13 +115,37 @@ cd /opt/serverinv
 sudo bash deploy/update.sh
 ```
 
+The update script will:
+1. Stop the ServerInv service
+2. Pull the latest code
+3. Install dependencies
+4. Rebuild the frontend
+5. Run database migrations
+6. **Optionally prompt to create/update admin credentials** (useful if login was lost)
+7. Restart the service
+
 ### After Update
 - [ ] Verify service is running: `sudo systemctl status serverinv`
-- [ ] Test login
+- [ ] Test login (or reset admin credentials if lost access)
 - [ ] Verify all pages load correctly
 - [ ] Check for errors: `sudo journalctl -u serverinv -n 50`
 - [ ] Test CRUD operations
 - [ ] Notify users that update is complete
+
+### Resetting Admin Credentials
+
+If you've lost admin access after an update:
+
+**VPS/Dedicated Server:**
+```bash
+sudo bash /opt/serverinv/deploy/reset-admin.sh
+```
+
+**Manual:**
+```bash
+cd /opt/serverinv/server
+sudo -u serverinv npx tsx src/db/reset-admin.ts admin NewPassword123
+```
 
 ## Troubleshooting
 
@@ -165,13 +189,23 @@ ls -la /opt/serverinv/client/dist/
 ## Security Incidents
 
 If you suspect a security breach:
-1. [ ] Change all user passwords immediately
+1. [ ] Change all user passwords immediately (use reset-admin.sh for admin account)
 2. [ ] Generate new JWT_SECRET (invalidates all sessions)
 3. [ ] Review logs for suspicious activity
 4. [ ] Check database for unauthorized changes
 5. [ ] Restore from backup if necessary
 6. [ ] Document incident and response actions
 7. [ ] Update security measures to prevent recurrence
+
+### Emergency Admin Password Reset
+```bash
+# VPS/Dedicated:
+sudo bash /opt/serverinv/deploy/reset-admin.sh
+
+# Or manual:
+cd /opt/serverinv/server
+sudo -u serverinv npx tsx src/db/reset-admin.ts admin NewSecurePassword
+```
 
 ## Maintenance Schedule
 

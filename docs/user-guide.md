@@ -11,6 +11,23 @@ Navigate to the application URL. You will see a login screen. Enter your usernam
 - **Default credentials**: `admin` / `admin`
 - Change your password immediately after first login via the Users page.
 
+### Lost Admin Credentials
+
+If you've lost access to your admin account, the system administrator can reset it using the admin reset tool:
+
+**VPS/Dedicated Server:**
+```bash
+sudo bash /opt/serverinv/deploy/reset-admin.sh
+```
+
+**Shared Hosting or Manual:**
+```bash
+cd ~/serverinv/server  # or /opt/serverinv/server
+npx tsx src/db/reset-admin.ts <username> <password>
+```
+
+This will create a new admin user or update an existing user's password and ensure they have admin role.
+
 ## Roles
 
 | Role | Permissions |
