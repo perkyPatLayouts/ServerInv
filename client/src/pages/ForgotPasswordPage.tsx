@@ -19,7 +19,10 @@ export default function ForgotPasswordPage() {
       await axios.post("/api/auth/forgot-password", { email });
       setSuccess(true);
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to send reset email. Please try again.");
+      console.error("Password reset error:", err);
+      const errorMessage = err.response?.data?.error || err.message || "Failed to send reset email";
+      const errorDetails = err.response?.status ? `(HTTP ${err.response.status})` : "";
+      setError(`${errorMessage} ${errorDetails}`.trim());
     } finally {
       setLoading(false);
     }
@@ -87,8 +90,9 @@ export default function ForgotPasswordPage() {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-lg border border-border bg-surface p-6 space-y-4">
             {error && (
-              <div className="bg-accent-error/10 border border-accent-error text-accent-error px-4 py-3 rounded">
-                {error}
+              <div className="bg-black text-white border border-red-500 px-4 py-3 rounded font-mono text-sm">
+                <div className="font-bold mb-1">Error:</div>
+                <div>{error}</div>
               </div>
             )}
 
