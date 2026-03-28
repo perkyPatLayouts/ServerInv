@@ -64,8 +64,10 @@ export default function ResetPasswordPage() {
     } catch (err: any) {
       console.error("Password reset error:", err);
       const errorMessage = err.response?.data?.error || err.message || "Failed to reset password";
-      const errorDetails = err.response?.status ? `(HTTP ${err.response.status})` : "";
-      setError(`${errorMessage} ${errorDetails}`.trim());
+      const errorDetails = err.response?.data?.details || "";
+      const httpStatus = err.response?.status ? `(HTTP ${err.response.status})` : "";
+      const fullError = [errorMessage, errorDetails, httpStatus].filter(Boolean).join(" - ");
+      setError(fullError);
     } finally {
       setLoading(false);
     }

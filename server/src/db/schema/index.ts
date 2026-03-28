@@ -13,6 +13,7 @@ const schemas = dbType === 'postgres' ? pgSchemas : mysqlSchemas;
 // Export all schemas
 export const {
   users,
+  passwordResetTokens,
   currencies,
   locations,
   providers,

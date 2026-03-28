@@ -37,7 +37,7 @@ function getTransporter(): Transporter | null {
   // Port 465 requires secure=true, port 587 uses STARTTLS (secure=false)
   const secure = process.env.SMTP_SECURE === "true" || port === 465;
 
-  transporter = nodemailer.createTransporter({
+  transporter = nodemailer.createTransport({
     host,
     port,
     secure,

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { eq, lt, and } from "drizzle-orm";
+import { eq, lt, gt, and } from "drizzle-orm";
 import { z } from "zod";
 import crypto from "crypto";
 import { db } from "../db/index.js";
@@ -72,14 +72,25 @@ router.post("/forgot-password", validate(forgotPasswordSchema), async (req: Requ
       await sendPasswordResetEmail(email, resetUrl);
     } catch (emailError: any) {
       console.error("Failed to send password reset email:", emailError);
-      res.status(500).json({ error: "Failed to send reset email. Please contact administrator." });
+      const errorMessage = emailError.message || "Unknown email error";
+      const errorCode = emailError.code || "UNKNOWN";
+      res.status(500).json({
+        error: `Failed to send reset email: ${errorMessage}`,
+        details: `Error code: ${errorCode}. Check SMTP configuration.`
+      });
       return;
     }
 
     res.json({ success: true, message: "If that email exists, a reset link has been sent." });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Password reset request error:", error);
-    res.status(500).json({ error: "An error occurred. Please try again." });
+    const errorMessage = error.message || "Unknown error";
+    const errorStack = error.stack || "";
+    console.error("Error stack:", errorStack);
+    res.status(500).json({
+      error: `Password reset failed: ${errorMessage}`,
+      details: "Check server logs for more information."
+    });
   }
 });
 
@@ -99,13 +110,14 @@ router.get("/verify-reset-token", async (req: Request, res: Response) => {
     const hashedToken = hashToken(token);
 
     // Find token and check if it's not expired
+    const now = new Date();
     const [resetToken] = await db
       .select()
       .from(passwordResetTokens)
       .where(
         and(
           eq(passwordResetTokens.token, hashedToken),
-          lt(new Date(), passwordResetTokens.expiresAt)
+          gt(passwordResetTokens.expiresAt, now)
         )
       );
 
@@ -132,13 +144,14 @@ router.post("/reset-password", validate(resetPasswordSchema), async (req: Reques
     const hashedToken = hashToken(token);
 
     // Find token and check if it's not expired
+    const now = new Date();
     const [resetToken] = await db
       .select()
       .from(passwordResetTokens)
       .where(
         and(
           eq(passwordResetTokens.token, hashedToken),
-          lt(new Date(), passwordResetTokens.expiresAt)
+          gt(passwordResetTokens.expiresAt, now)
         )
       );
 
@@ -174,7 +187,8 @@ router.post("/reset-password", validate(resetPasswordSchema), async (req: Reques
  */
 export async function cleanupExpiredTokens(): Promise<void> {
   try {
-    await db.delete(passwordResetTokens).where(lt(passwordResetTokens.expiresAt, new Date()));
+    const now = new Date();
+    await db.delete(passwordResetTokens).where(lt(passwordResetTokens.expiresAt, now));
     console.log("Expired password reset tokens cleaned up");
   } catch (error) {
     console.error("Failed to cleanup expired tokens:", error);
