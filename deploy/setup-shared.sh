@@ -235,7 +235,31 @@ else
 fi
 echo -e "${GREEN}✓ JWT secret generated${NC}"
 
+# Prompt for CORS allowed origins
+echo ""
+echo -e "${BLUE}Configuring CORS (Cross-Origin Resource Sharing)${NC}"
+echo "The main domain will be automatically allowed:"
+echo "  - https://$DOMAIN"
+echo "  - http://$DOMAIN"
+echo ""
+ALLOWED_ORIGINS="https://$DOMAIN,http://$DOMAIN"
+
+read -p "Do you want to add additional allowed origins? (y/N): " add_origins
+if [[ "$add_origins" =~ ^[Yy]$ ]]; then
+  echo ""
+  echo "Enter additional origins (comma-separated, no spaces)."
+  echo "Examples:"
+  echo "  - https://app.example.com,https://www.example.com"
+  echo "  - https://subdomain.example.com"
+  echo ""
+  read -p "Additional origins: " additional_origins
+  if [ -n "$additional_origins" ]; then
+    ALLOWED_ORIGINS="$ALLOWED_ORIGINS,$additional_origins"
+  fi
+fi
+
 # Create .env files
+echo ""
 echo -e "${BLUE}Creating environment configuration...${NC}"
 cat > "$APP_DIR/server/.env" << EOF
 # Database Configuration
@@ -248,8 +272,8 @@ JWT_SECRET=$JWT_SECRET
 PORT=3000
 NODE_ENV=production
 
-# CORS - Update after domain setup
-ALLOWED_ORIGINS=https://$DOMAIN,http://$DOMAIN
+# CORS
+ALLOWED_ORIGINS=$ALLOWED_ORIGINS
 
 # Shared Hosting Configuration
 TMP_DIR=$APP_DIR/tmp

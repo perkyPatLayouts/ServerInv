@@ -54,6 +54,48 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
   fi
 fi
 
+# Optional: Update ALLOWED_ORIGINS
+echo ""
+echo "==> CORS Configuration"
+read -p "Do you want to update ALLOWED_ORIGINS? (y/N): " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+  echo ""
+  echo "Current ALLOWED_ORIGINS in .env:"
+  grep ALLOWED_ORIGINS "$APP_DIR/server/.env" || echo "  (not found)"
+  echo ""
+  echo "Enter new allowed origins (comma-separated, no spaces)."
+  echo "Examples:"
+  echo "  - https://example.com,http://example.com"
+  echo "  - https://app.example.com,https://www.example.com,http://example.com"
+  echo ""
+  read -p "New ALLOWED_ORIGINS: " new_origins
+  if [ -n "$new_origins" ]; then
+    # Update or add ALLOWED_ORIGINS in .env file
+    if grep -q "ALLOWED_ORIGINS=" "$APP_DIR/server/.env"; then
+      # Update existing
+      sed -i "s|ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=$new_origins|" "$APP_DIR/server/.env"
+      echo "✓ Updated ALLOWED_ORIGINS in $APP_DIR/server/.env"
+    else
+      # Add new
+      echo "ALLOWED_ORIGINS=$new_origins" >> "$APP_DIR/server/.env"
+      echo "✓ Added ALLOWED_ORIGINS to $APP_DIR/server/.env"
+    fi
+
+    # Also update root .env if it exists
+    if [ -f "$APP_DIR/.env" ]; then
+      if grep -q "ALLOWED_ORIGINS=" "$APP_DIR/.env"; then
+        sed -i "s|ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=$new_origins|" "$APP_DIR/.env"
+      else
+        echo "ALLOWED_ORIGINS=$new_origins" >> "$APP_DIR/.env"
+      fi
+      echo "✓ Updated ALLOWED_ORIGINS in $APP_DIR/.env"
+    fi
+  else
+    echo "No origins entered. Skipping ALLOWED_ORIGINS update."
+  fi
+fi
+
 echo ""
 echo "==> Restarting ServerInv service"
 systemctl start serverinv

@@ -310,12 +310,36 @@ else
   chown -R $APP_USER:$APP_USER $APP_DIR
 fi
 
+# Prompt for CORS allowed origins
+echo ""
+echo "==> Configuring CORS (Cross-Origin Resource Sharing)"
+echo "    The main domain will be automatically allowed:"
+echo "    - https://$APP_DOMAIN"
+echo "    - http://$APP_DOMAIN"
+echo ""
+ALLOWED_ORIGINS="https://$APP_DOMAIN,http://$APP_DOMAIN"
+
+read -rp "Do you want to add additional allowed origins? (y/N): " add_origins
+if [[ "$add_origins" =~ ^[Yy]$ ]]; then
+  echo ""
+  echo "Enter additional origins (comma-separated, no spaces)."
+  echo "Examples:"
+  echo "  - https://app.example.com,https://www.example.com"
+  echo "  - https://subdomain.example.com"
+  echo ""
+  read -rp "Additional origins: " additional_origins
+  if [ -n "$additional_origins" ]; then
+    ALLOWED_ORIGINS="$ALLOWED_ORIGINS,$additional_origins"
+  fi
+fi
+
+echo ""
 echo "==> Creating .env"
 cat > $APP_DIR/.env << EOF
 DATABASE_URL=$DATABASE_URL
 JWT_SECRET=$JWT_SECRET
 PORT=3000
-ALLOWED_ORIGINS=https://$APP_DOMAIN,http://$APP_DOMAIN
+ALLOWED_ORIGINS=$ALLOWED_ORIGINS
 EOF
 cp $APP_DIR/.env $APP_DIR/server/.env
 chown $APP_USER:$APP_USER $APP_DIR/.env $APP_DIR/server/.env
