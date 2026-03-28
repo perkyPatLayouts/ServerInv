@@ -52,6 +52,11 @@ cd /opt/serverinv
 # Pull latest code (or upload new files)
 sudo -u serverinv git pull
 
+# If git pull fails with conflicts, stash local changes first:
+# sudo -u serverinv git stash
+# sudo -u serverinv git pull
+# sudo -u serverinv git stash pop  # (optional, to restore local changes)
+
 # Install any new dependencies
 sudo -u serverinv npm install
 
@@ -88,6 +93,11 @@ cd ~/serverinv
 
 # Pull latest code
 git pull
+
+# If git pull fails with conflicts, stash local changes first:
+# git stash
+# git pull
+# git stash pop  # (optional, to restore local changes)
 
 # Install dependencies
 npm install
@@ -283,6 +293,50 @@ sudo chown -R serverinv:serverinv /opt/serverinv
 ```bash
 chmod -R 755 ~/serverinv
 ```
+
+### Git pull fails with conflicts
+
+If `git pull` fails because of local modifications or conflicts:
+
+**VPS:**
+```bash
+cd /opt/serverinv
+
+# Stash local changes
+sudo -u serverinv git stash
+
+# Pull latest code
+sudo -u serverinv git pull
+
+# Optionally restore local changes (may cause conflicts)
+sudo -u serverinv git stash pop
+
+# Or discard local changes permanently:
+# sudo -u serverinv git reset --hard origin/main
+```
+
+**Shared hosting:**
+```bash
+cd ~/serverinv
+
+# Stash local changes
+git stash
+
+# Pull latest code
+git pull
+
+# Optionally restore local changes
+git stash pop
+
+# Or discard local changes permanently:
+# git reset --hard origin/main
+```
+
+**What this does:**
+- `git stash` - Temporarily saves your local changes
+- `git pull` - Updates from remote repository
+- `git stash pop` - Attempts to reapply your local changes (may cause merge conflicts)
+- `git reset --hard origin/main` - Discards all local changes permanently (use with caution)
 
 ### Database migration fails
 
