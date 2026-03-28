@@ -43,14 +43,14 @@ export default function LoginPage() {
         {error && <p className="text-sm text-danger text-center">{error}</p>}
         <Input label="Username" value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
         <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        <div className="flex items-center justify-end">
-          <Link to="/forgot-password" className="text-sm text-accent-primary hover:text-accent-primary/80">
-            Forgot password?
-          </Link>
-        </div>
         <Button type="submit" className="w-full" disabled={loading}>
           {loading ? "Signing in..." : "Sign in"}
         </Button>
+        <div className="text-center pt-2">
+          <Link to="/forgot-password" className="text-sm text-accent hover:text-accent/80 underline">
+            Forgot password?
+          </Link>
+        </div>
       </form>
     </div>
   );
