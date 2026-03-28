@@ -57,13 +57,17 @@ fi
 # Optional: Update ALLOWED_ORIGINS
 echo ""
 echo "==> CORS Configuration"
-read -p "Do you want to update ALLOWED_ORIGINS? (y/N): " -n 1 -r
+echo "ℹ️  Note: ALLOWED_ORIGINS is automatically set from APP_URL (both http and https)."
+echo "   Only update this if you need additional origins beyond the main domain."
+echo ""
+read -p "Do you want to manually override ALLOWED_ORIGINS? (y/N): " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
   echo ""
   echo "Current ALLOWED_ORIGINS in .env:"
   grep ALLOWED_ORIGINS "$APP_DIR/server/.env" || echo "  (not found)"
   echo ""
+  echo "⚠️  WARNING: This will override the automatic setting from APP_URL."
   echo "Enter new allowed origins (comma-separated, no spaces)."
   echo "Examples:"
   echo "  - https://example.com,http://example.com"
@@ -114,6 +118,17 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
   echo ""
   read -p "Application URL: " app_url
   if [ -n "$app_url" ]; then
+    # Extract domain from URL (remove protocol and port)
+    domain=$(echo "$app_url" | sed -e 's|^https\?://||' -e 's|:[0-9]*$||')
+
+    # Set ALLOWED_ORIGINS to both http and https
+    allowed_origins="https://$domain,http://$domain"
+
+    echo ""
+    echo "ℹ️  ALLOWED_ORIGINS will be automatically set to:"
+    echo "   $allowed_origins"
+    echo ""
+
     # Update APP_URL in server/.env
     if grep -q "^APP_URL=" "$APP_DIR/server/.env"; then
       sed -i "s|^APP_URL=.*|APP_URL=$app_url|" "$APP_DIR/server/.env"
@@ -123,6 +138,15 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
       echo "✓ Added APP_URL to $APP_DIR/server/.env"
     fi
 
+    # Update ALLOWED_ORIGINS in server/.env
+    if grep -q "^ALLOWED_ORIGINS=" "$APP_DIR/server/.env"; then
+      sed -i "s|^ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=$allowed_origins|" "$APP_DIR/server/.env"
+      echo "✓ Updated ALLOWED_ORIGINS in $APP_DIR/server/.env"
+    else
+      echo "ALLOWED_ORIGINS=$allowed_origins" >> "$APP_DIR/server/.env"
+      echo "✓ Added ALLOWED_ORIGINS to $APP_DIR/server/.env"
+    fi
+
     # Also update root .env if it exists
     if [ -f "$APP_DIR/.env" ]; then
       if grep -q "^APP_URL=" "$APP_DIR/.env"; then
@@ -130,7 +154,14 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
       else
         echo "APP_URL=$app_url" >> "$APP_DIR/.env"
       fi
-      echo "✓ Updated APP_URL in $APP_DIR/.env"
+
+      if grep -q "^ALLOWED_ORIGINS=" "$APP_DIR/.env"; then
+        sed -i "s|^ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=$allowed_origins|" "$APP_DIR/.env"
+      else
+        echo "ALLOWED_ORIGINS=$allowed_origins" >> "$APP_DIR/.env"
+      fi
+
+      echo "✓ Updated APP_URL and ALLOWED_ORIGINS in $APP_DIR/.env"
     fi
   else
     echo "No URL entered. Skipping APP_URL update."

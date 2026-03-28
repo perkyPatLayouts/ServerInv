@@ -173,8 +173,8 @@ sudo chown serverinv:serverinv /opt/serverinv/.env /opt/serverinv/server/.env
 | `DATABASE_URL` | Database connection string (postgres:// or mysql://) - auto-detects type |
 | `JWT_SECRET` | Random secret for signing JWTs (minimum 32 hex chars) |
 | `PORT` | Backend listen port (default `3000`) |
-| `ALLOWED_ORIGINS` | Comma-separated list of allowed CORS origins |
-| `APP_URL` | Full URL of the application (for password reset emails) |
+| `ALLOWED_ORIGINS` | Comma-separated list of allowed CORS origins (automatically set from APP_URL to include both http and https) |
+| `APP_URL` | Full URL of the application (for password reset emails and CORS) |
 | `SMTP_HOST` | SMTP server hostname (optional, for password reset emails) |
 | `SMTP_PORT` | SMTP server port (optional, default `587`) |
 | `SMTP_USER` | SMTP username/email (optional) |
@@ -465,10 +465,12 @@ This script will:
 4. Rebuild the frontend
 5. Run database migrations
 6. **Optionally prompt you to create/update admin credentials** (recommended if login was lost)
-7. **Optionally update ALLOWED_ORIGINS** (CORS configuration)
-8. **Optionally update APP_URL** (for password reset email links)
+7. **Optionally update ALLOWED_ORIGINS** (manual override only - normally auto-set from APP_URL)
+8. **Optionally update APP_URL** (automatically updates ALLOWED_ORIGINS to both http and https)
 9. **Optionally update SMTP settings** (for email functionality)
 10. Restart the service and show its status
+
+**Note:** When you update APP_URL, ALLOWED_ORIGINS is automatically set to include both `http://domain` and `https://domain`. You only need to manually update ALLOWED_ORIGINS if you need additional domains beyond your main domain.
 
 #### Resetting Admin Credentials
 
