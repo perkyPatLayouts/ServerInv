@@ -51,6 +51,7 @@ Open http://localhost:5173 and login with `admin` / `admin`.
 | [docs/user-guide.md](docs/user-guide.md) | User interface and features guide |
 | [docs/deployment-guide.md](docs/deployment-guide.md) | VPS/Dedicated server deployment |
 | [docs/shared-hosting-guide.md](docs/shared-hosting-guide.md) | Shared hosting (cPanel/DirectAdmin) deployment |
+| [docs/update-guide.md](docs/update-guide.md) | Updating existing installations |
 | [docs/developer-guide.md](docs/developer-guide.md) | Architecture and development guide |
 | [docs/api-reference.md](docs/api-reference.md) | REST API endpoint documentation |
 | [docs/database-schema.md](docs/database-schema.md) | Database schema and relationships |

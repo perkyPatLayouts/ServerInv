@@ -2,6 +2,8 @@
 
 This guide covers deploying ServerInv to shared hosting environments running cPanel or DirectAdmin with Apache, LiteSpeed, or other web servers.
 
+**Already deployed?** See the **[Update Guide](./update-guide.md)** for updating an existing installation.
+
 ## Table of Contents
 
 - [Requirements](#requirements)
@@ -676,65 +678,35 @@ Consider VPS if:
 
 ### Updating ServerInv
 
+**📋 For detailed update instructions, see the [Update Guide](./update-guide.md).**
+
+Quick manual update for shared hosting:
+
 ```bash
-# 1. Backup current installation
 cd ~/serverinv
-tar -czf ~/serverinv-backup-$(date +%Y%m%d).tar.gz .
 
-# 2. Backup database using in-app feature
-# Login as admin and use the backup page
-# This is the easiest method and works with both MySQL and PostgreSQL
-
-# 3. Stop application
-# cPanel: Stop in "Setup Node.js App"
-# DirectAdmin: systemctl --user stop serverinv
-
-# 4. Pull new code
+# Backup first (use in-app backup feature)
+# Then pull new code
 git pull origin main
-# Or upload new files via SFTP
 
-# 5. Update dependencies
-cd ~/serverinv/server && npm install
-cd ~/serverinv/client && npm install
+# Install dependencies
+npm install
 
-# 6. Rebuild
-cd ~/serverinv/server && npm run build
-cd ~/serverinv/client && npm run build
+# Rebuild
+cd client && npm run build
+cd ../server && npm run build
 
-# 7. Run migrations
-cd ~/serverinv/server
-npx tsx src/db/migrate.ts
+# Run migrations
+cd ../server && npx tsx src/db/migrate.ts
 
-# 8. (Optional) Reset admin credentials if needed
-# If you've lost access to your admin account, run:
-npx tsx src/db/reset-admin.ts your_username your_password
-# This will create a new admin user or update an existing one
-
-# 9. Restart application
-# cPanel: Start in "Setup Node.js App"
-# DirectAdmin: systemctl --user start serverinv
-
-# 10. Test
-curl http://localhost:3000/api/health
+# Restart application (via control panel)
 ```
 
-#### Resetting Admin Credentials
-
-If you've lost access to your admin account or need to update credentials:
+**Resetting admin credentials:**
 
 ```bash
 cd ~/serverinv/server
 npx tsx src/db/reset-admin.ts <username> <password>
-```
-
-This will:
-- Create a new admin user if the username doesn't exist
-- Update the password and ensure admin role if the username already exists
-- Work with both PostgreSQL and MySQL databases
-
-Example:
-```bash
-npx tsx src/db/reset-admin.ts admin MyNewPassword123
 ```
 
 ### Maintenance Tasks

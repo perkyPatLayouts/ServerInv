@@ -26,6 +26,8 @@ ServerInv supports two deployment environments:
 
 **👉 [Read the Shared Hosting Deployment Guide](./shared-hosting-guide.md)**
 
+**Already deployed?** See the **[Update Guide](./update-guide.md)** for updating an existing installation.
+
 ---
 
 ## VPS/Dedicated Server Deployment
@@ -443,93 +445,18 @@ This allows SSH (22), HTTP (80), and HTTPS (443).
 
 ## Updating the Application
 
-### Automated Update (Recommended)
+**📋 For detailed update instructions, see the [Update Guide](./update-guide.md).**
 
-First, pull the latest code:
-
+Quick update:
 ```bash
 cd /opt/serverinv
-sudo -u serverinv git pull
+sudo bash deploy/update.sh
 ```
 
-Then run the update script:
-
-```bash
-sudo bash /opt/serverinv/deploy/update.sh
-```
-
-This script will:
-1. Stop the ServerInv service
-2. Pull the latest code via `git pull`
-3. Install any new dependencies
-4. Rebuild the frontend
-5. Run database migrations
-6. **Optionally prompt you to create/update admin credentials** (recommended if login was lost)
-7. **Optionally update ALLOWED_ORIGINS** (manual override only - normally auto-set from APP_URL)
-8. **Optionally update APP_URL** (automatically updates ALLOWED_ORIGINS to both http and https)
-9. **Optionally update SMTP settings** (for email functionality)
-10. Restart the service and show its status
-
-**Note:** When you update APP_URL, ALLOWED_ORIGINS is automatically set to include both `http://domain` and `https://domain`. You only need to manually update ALLOWED_ORIGINS if you need additional domains beyond your main domain.
-
-#### Resetting Admin Credentials
-
-If you've lost access to your admin account or need to update credentials, you have two options:
-
-**Option 1: During update** - The update script will prompt you to create/update admin credentials.
-
-**Option 2: Standalone script** - Run the reset script at any time:
-
-```bash
-sudo bash /opt/serverinv/deploy/reset-admin.sh
-```
-
-Both methods will:
-- Create a new admin user if the username doesn't exist
-- Update the password and ensure admin role if the username already exists
-- Work with both PostgreSQL and MySQL databases
-
-#### Updating Application URL (APP_URL)
-
-If password reset email links are pointing to the wrong URL (e.g., localhost instead of your domain), update the APP_URL:
-
-1. **During update** - The update script will prompt you to update APP_URL
-2. **Manual edit** - Edit `/opt/serverinv/server/.env` and set:
-   ```bash
-   APP_URL=https://your-domain.com
-   ```
-   Then restart the service:
-   ```bash
-   sudo systemctl restart serverinv
-   ```
-
-The APP_URL should match the domain where your application is accessible (e.g., `https://serverinv.example.com`).
-
-### Manual Update
-
-```bash
-# Stop the service
-sudo systemctl stop serverinv
-
-cd /opt/serverinv
-
-# Pull latest code (or upload new files)
-sudo -u serverinv git pull
-
-# Install any new dependencies
-sudo -u serverinv npm install
-
-# Rebuild frontend
-cd /opt/serverinv/client
-sudo -u serverinv npm run build
-
-# Run any new migrations (do NOT run drizzle-kit generate on server)
-cd /opt/serverinv/server
-sudo -u serverinv npx tsx src/db/migrate.ts
-
-# Restart backend
-sudo systemctl start serverinv
-```
+The update script handles dependencies, migrations, frontend rebuild, and optionally allows you to:
+- Reset admin credentials
+- Update APP_URL (automatically sets CORS)
+- Configure SMTP settings
 
 ---
 
