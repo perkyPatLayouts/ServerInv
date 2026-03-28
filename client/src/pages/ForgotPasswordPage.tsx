@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import axios from "axios";
-import { Button } from "../components/ui/Button";
-import { Input } from "../components/ui/Input";
+import Button from "../components/ui/Button";
+import Input from "../components/ui/Input";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -101,7 +101,7 @@ export default function ForgotPasswordPage() {
                 type="email"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                 placeholder="your.email@example.com"
                 disabled={loading}
               />
@@ -109,7 +109,7 @@ export default function ForgotPasswordPage() {
           </div>
 
           <div>
-            <Button type="submit" fullWidth disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Sending..." : "Send Reset Link"}
             </Button>
           </div>

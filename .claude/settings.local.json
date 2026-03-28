@@ -40,7 +40,11 @@
       "Bash(docker stop:*)",
       "Bash(docker rm:*)",
       "Bash(README.md:*)",
-      "Bash(DEPLOYMENT.md:*)"
+      "Bash(DEPLOYMENT.md:*)",
+      "Bash(npm run dev:server:*)",
+      "Bash(curl:*)",
+      "Bash(npx drizzle-kit generate:*)",
+      "Bash(git pull:*)"
     ]
   }
 }

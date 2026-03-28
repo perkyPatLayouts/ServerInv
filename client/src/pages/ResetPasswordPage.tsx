@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router";
 import axios from "axios";
-import { Button } from "../components/ui/Button";
-import { Input } from "../components/ui/Input";
+import Button from "../components/ui/Button";
+import Input from "../components/ui/Input";
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
@@ -202,7 +202,7 @@ export default function ResetPasswordPage() {
                 type="password"
                 required
                 value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewPassword(e.target.value)}
                 placeholder="Enter new password"
                 disabled={loading}
                 minLength={4}
@@ -221,7 +221,7 @@ export default function ResetPasswordPage() {
                 type="password"
                 required
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
                 placeholder="Confirm new password"
                 disabled={loading}
                 minLength={4}
@@ -230,7 +230,7 @@ export default function ResetPasswordPage() {
           </div>
 
           <div>
-            <Button type="submit" fullWidth disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Resetting..." : "Reset Password"}
             </Button>
           </div>
