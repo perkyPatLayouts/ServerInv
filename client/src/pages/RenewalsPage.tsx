@@ -4,6 +4,7 @@ import { useServers } from "../api/hooks";
 import { Server } from "../types";
 import DataTable from "../components/ui/DataTable";
 import PageHeader from "../components/ui/PageHeader";
+import { safeHref } from "../utils/url";
 
 function urgencyClass(dateStr: string | null): string {
   if (!dateStr) return "";
@@ -22,15 +23,17 @@ function daysLabel(dateStr: string): string {
 
 /** Renders a provider name as a link with optional CP badge. */
 function ProviderLink({ name, siteUrl, cpUrl }: { name: string; siteUrl?: string | null; cpUrl?: string | null }) {
+  const safeSite = safeHref(siteUrl);
+  const safeCp = safeHref(cpUrl);
   return (
     <span className="inline-flex items-center gap-1.5">
-      {siteUrl ? (
-        <a href={siteUrl} target="_blank" rel="noopener" className="text-accent hover:underline">{name}</a>
+      {safeSite ? (
+        <a href={safeSite} target="_blank" rel="noopener" className="text-accent hover:underline">{name}</a>
       ) : (
         <span>{name}</span>
       )}
-      {cpUrl && (
-        <a href={cpUrl} target="_blank" rel="noopener" className="text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent hover:bg-accent/30 font-medium leading-none" title="Control Panel">CP</a>
+      {safeCp && (
+        <a href={safeCp} target="_blank" rel="noopener" className="text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent hover:bg-accent/30 font-medium leading-none" title="Control Panel">CP</a>
       )}
     </span>
   );

@@ -28,8 +28,11 @@ const forgotPasswordSchema = z.object({
   email: z.string().email("Invalid email address"),
 });
 
+/** Validates that a token is exactly 64 hex characters. */
+const TOKEN_FORMAT = /^[a-f0-9]{64}$/;
+
 const resetPasswordSchema = z.object({
-  token: z.string().min(1),
+  token: z.string().regex(TOKEN_FORMAT, "Invalid token format"),
   newPassword: z.string().min(4, "Password must be at least 4 characters"),
 });
 
@@ -72,25 +75,14 @@ router.post("/forgot-password", validate(forgotPasswordSchema), async (req: Requ
       await sendPasswordResetEmail(email, resetUrl);
     } catch (emailError: any) {
       console.error("Failed to send password reset email:", emailError);
-      const errorMessage = emailError.message || "Unknown email error";
-      const errorCode = emailError.code || "UNKNOWN";
-      res.status(500).json({
-        error: `Failed to send reset email: ${errorMessage}`,
-        details: `Error code: ${errorCode}. Check SMTP configuration.`
-      });
+      res.status(500).json({ error: "Failed to send reset email. Please try again later." });
       return;
     }
 
     res.json({ success: true, message: "If that email exists, a reset link has been sent." });
   } catch (error: any) {
     console.error("Password reset request error:", error);
-    const errorMessage = error.message || "Unknown error";
-    const errorStack = error.stack || "";
-    console.error("Error stack:", errorStack);
-    res.status(500).json({
-      error: `Password reset failed: ${errorMessage}`,
-      details: "Check server logs for more information."
-    });
+    res.status(500).json({ error: "An error occurred. Please try again." });
   }
 });
 
@@ -103,6 +95,11 @@ router.get("/verify-reset-token", async (req: Request, res: Response) => {
 
   if (!token || typeof token !== "string") {
     res.status(400).json({ error: "Token is required" });
+    return;
+  }
+
+  if (!TOKEN_FORMAT.test(token)) {
+    res.status(400).json({ error: "Invalid or expired token" });
     return;
   }
 

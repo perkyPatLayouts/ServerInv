@@ -15,11 +15,16 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+/** Dummy hash used to prevent timing-based username enumeration. */
+const DUMMY_HASH = "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012";
+
 /** POST /api/auth/login */
 router.post("/login", validate(loginSchema), async (req: Request, res: Response) => {
   const { username, password } = req.body;
   const [user] = await db.select().from(users).where(eq(users.username, username));
-  if (!user || !(await comparePassword(password, user.password))) {
+  // Always run bcrypt.compare to prevent timing-based username enumeration
+  const isValid = await comparePassword(password, user?.password ?? DUMMY_HASH);
+  if (!user || !isValid) {
     res.status(401).json({ error: "Invalid credentials" });
     return;
   }

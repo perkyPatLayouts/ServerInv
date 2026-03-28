@@ -20,11 +20,7 @@ export default function ForgotPasswordPage() {
       setSuccess(true);
     } catch (err: any) {
       console.error("Password reset error:", err);
-      const errorMessage = err.response?.data?.error || err.message || "Failed to send reset email";
-      const errorDetails = err.response?.data?.details || "";
-      const httpStatus = err.response?.status ? `(HTTP ${err.response.status})` : "";
-      const fullError = [errorMessage, errorDetails, httpStatus].filter(Boolean).join(" - ");
-      setError(fullError);
+      setError(err.response?.data?.error || "Failed to send reset email. Please try again.");
     } finally {
       setLoading(false);
     }

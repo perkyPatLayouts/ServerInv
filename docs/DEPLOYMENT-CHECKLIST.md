@@ -67,6 +67,7 @@ The setup script will display:
 - [ ] Verify CORS is working (no errors in browser console)
 - [ ] Test authentication expiration (24 hours)
 - [ ] Confirm backup/restore is admin-only
+- [ ] Verify rate limiting: rapid login attempts return 429 after 5 tries
 - [ ] Test SSL auto-renewal setup: `sudo certbot renew --dry-run`
 
 ## Post-Deployment
@@ -243,5 +244,5 @@ sudo -u serverinv npx tsx src/db/reset-admin.ts admin NewSecurePassword
 
 ---
 
-**Last Updated:** 2026-03-26
-**Document Version:** 1.0
+**Last Updated:** 2026-03-28
+**Document Version:** 1.1

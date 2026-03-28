@@ -3,18 +3,21 @@ import { useServers } from "../api/hooks";
 import { Server } from "../types";
 import DataTable from "../components/ui/DataTable";
 import PageHeader from "../components/ui/PageHeader";
+import { safeHref } from "../utils/url";
 
 /** Renders a provider name as a link with optional CP badge. */
 function ProviderLink({ name, siteUrl, cpUrl }: { name: string; siteUrl?: string | null; cpUrl?: string | null }) {
+  const safeSite = safeHref(siteUrl);
+  const safeCp = safeHref(cpUrl);
   return (
     <span className="inline-flex items-center gap-1.5">
-      {siteUrl ? (
-        <a href={siteUrl} target="_blank" rel="noopener" className="text-accent hover:underline">{name}</a>
+      {safeSite ? (
+        <a href={safeSite} target="_blank" rel="noopener" className="text-accent hover:underline">{name}</a>
       ) : (
         <span>{name}</span>
       )}
-      {cpUrl && (
-        <a href={cpUrl} target="_blank" rel="noopener" className="text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent hover:bg-accent/30 font-medium leading-none" title="Control Panel">CP</a>
+      {safeCp && (
+        <a href={safeCp} target="_blank" rel="noopener" className="text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent hover:bg-accent/30 font-medium leading-none" title="Control Panel">CP</a>
       )}
     </span>
   );
@@ -29,7 +32,8 @@ export default function ServerUrlsPage() {
       header: "URL",
       cell: ({ getValue }) => {
         const v = getValue() as string;
-        return v ? <a href={v} target="_blank" rel="noopener" className="text-accent hover:underline">{v}</a> : "—";
+        const safe = safeHref(v);
+        return safe ? <a href={safe} target="_blank" rel="noopener" className="text-accent hover:underline">{v}</a> : (v || "—");
       },
     },
     {
@@ -60,8 +64,8 @@ export default function ServerUrlsPage() {
             return (
               <div className="bg-surface border border-border rounded-lg p-4">
                 <h3 className="font-semibold text-text-primary">{s.name}</h3>
-                {s.url ? (
-                  <a href={s.url} target="_blank" rel="noopener" className="text-accent hover:underline text-sm break-all">{s.url}</a>
+                {s.url && safeHref(s.url) ? (
+                  <a href={safeHref(s.url)} target="_blank" rel="noopener" className="text-accent hover:underline text-sm break-all">{s.url}</a>
                 ) : (
                   <span className="text-sm text-text-secondary">No URL</span>
                 )}

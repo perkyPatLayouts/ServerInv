@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useProviders } from "../api/hooks";
 import { Provider } from "../types";
 import LookupPage from "../components/forms/LookupPage";
+import { safeHref } from "../utils/url";
 
 export default function ProvidersPage() {
   return (
@@ -23,7 +24,8 @@ export default function ProvidersPage() {
           header: "Site URL",
           cell: ({ getValue }) => {
             const v = getValue() as string;
-            return v ? <a href={v} target="_blank" rel="noopener" className="text-accent hover:underline">{v}</a> : "—";
+            const safe = safeHref(v);
+            return safe ? <a href={safe} target="_blank" rel="noopener" className="text-accent hover:underline">{v}</a> : (v || "—");
           },
         },
         {
@@ -31,7 +33,8 @@ export default function ProvidersPage() {
           header: "Control Panel",
           cell: ({ getValue }) => {
             const v = getValue() as string;
-            return v ? <a href={v} target="_blank" rel="noopener" className="text-accent hover:underline">{v}</a> : "—";
+            const safe = safeHref(v);
+            return safe ? <a href={safe} target="_blank" rel="noopener" className="text-accent hover:underline">{v}</a> : (v || "—");
           },
         },
       ]}

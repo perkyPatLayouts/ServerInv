@@ -20,6 +20,7 @@ import paymentMethodRoutes from "./routes/paymentMethods.js";
 import userRoutes from "./routes/users.js";
 import backupRoutes from "./routes/backup.js";
 import { authenticate } from "./middleware/auth.js";
+import { loginLimiter, passwordResetLimiter } from "./middleware/rateLimit.js";
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -45,6 +46,10 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+// Rate-limited auth endpoints
+app.use("/api/auth/login", loginLimiter);
+app.use("/api/auth/forgot-password", passwordResetLimiter);
 
 // Public routes
 app.use("/api/auth", authRoutes);

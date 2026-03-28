@@ -1,12 +1,12 @@
 # ServerInv Security Documentation
 
-## Security Audit Summary (Last Updated: 2026-03-26)
+## Security Audit Summary (Last Updated: 2026-03-28)
 
-A comprehensive security audit was performed covering authentication, authorization, SQL injection, XSS, input validation, API security, file uploads, and sensitive data handling.
+A comprehensive security audit was performed covering authentication, authorization, SQL injection, XSS, input validation, API security, file uploads, and sensitive data handling. A follow-up audit on 2026-03-28 addressed 6 additional vulnerabilities (1 critical, 2 high, 2 medium, 1 medium).
 
-### Security Status: ✅ PRODUCTION READY (with mitigations applied)
+### Security Status: ✅ PRODUCTION READY
 
-All CRITICAL and HIGH severity issues have been addressed. Medium and low priority items are documented below for ongoing improvement.
+All CRITICAL, HIGH, and MEDIUM severity issues have been addressed. Low priority items are documented below for ongoing improvement.
 
 ---
 
@@ -63,13 +63,29 @@ All CRITICAL and HIGH severity issues have been addressed. Medium and low priori
 - React automatic escaping
 - No use of `dangerouslySetInnerHTML`, `innerHTML`, or `eval()`
 - Form data properly escaped
+- URL protocol validation: all user-supplied URLs rendered in `<a href>` are validated via `safeHref()` utility to allow only `http:` and `https:` protocols (prevents `javascript:` XSS)
+
+**✅ Password Reset Token Validation**
+- Reset tokens must match `/^[a-f0-9]{64}$/` format (validated before database lookup)
+- Tokens are hashed (SHA-256) before storage
+- Tokens expire after 1 hour and are single-use
+
+**✅ Rate Limiting**
+- Login endpoint: 5 attempts per 15 minutes per IP (`express-rate-limit`)
+- Password reset endpoint: 3 requests per 15 minutes per IP
+- Returns `429 Too Many Requests` with standard `RateLimit-*` headers
+
+**✅ Timing Attack Prevention**
+- Login always runs `bcrypt.compare()` even when user doesn't exist (dummy hash)
+- Prevents username enumeration via response time analysis
 
 ### 3. Command Injection Protection
 
 **✅ Backup Operations**
-- Passwords properly escaped in shell commands (single quote escaping)
-- Environment variables used instead of command-line arguments where possible
-- Shell explicitly set to `/bin/bash` for consistency
+- All shell commands use `spawnSync()` with array arguments (no shell interpolation)
+- DATABASE_URL parsed with `new URL()` constructor (no fragile regex)
+- Passwords passed via environment variables (`PGPASSWORD`, `MYSQL_PWD`), never on command line
+- `commandExists()` uses a hardcoded allowlist of permitted commands
 - Error details not exposed to clients
 
 ### 4. Error Handling
@@ -190,19 +206,10 @@ Use `.env.example` as template.
 
 ### Medium Priority
 
-**⚠️ Rate Limiting**
-- Not currently implemented
-- Future: Add rate limiting on `/api/auth/login` to prevent brute-force attacks
-- Recommended: `express-rate-limit` middleware
-
 **⚠️ Account Lockout**
 - No automatic account lockout after failed login attempts
 - Future: Implement progressive delay or temporary lockout after N failed attempts
-
-**⚠️ URL Validation**
-- URL fields accept any string (no format validation)
-- Future: Add `.url()` validator in Zod schemas
-- Low risk: URLs are not executed, only displayed
+- Current mitigation: Rate limiting (5 attempts per 15 minutes) prevents rapid brute-force
 
 **⚠️ Backup File Validation**
 - Restore operation doesn't validate backup file contents
@@ -292,5 +299,5 @@ If you discover a security vulnerability:
 
 ---
 
-Last Updated: 2026-03-26
-Security Audit ID: SA-20260326-001
+Last Updated: 2026-03-28
+Security Audit ID: SA-20260328-002

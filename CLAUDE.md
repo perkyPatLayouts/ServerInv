@@ -98,7 +98,11 @@ ServerInv supports two deployment scenarios:
 - Bcrypt password hashing (10 rounds)
 - Helmet.js security headers
 - CORS restricted to allowed origins only
+- Rate limiting on login (5/15min) and password reset (3/15min) via `express-rate-limit`
+- Timing-safe login (bcrypt always runs to prevent username enumeration)
 - Input validation via Zod schemas
 - SQL injection protection via Drizzle ORM
-- Command injection protection in backup operations
+- Command injection protection in backup operations (spawnSync with array args, no shell)
+- URL protocol validation (safeHref utility prevents javascript: XSS in rendered links)
+- Password reset token format validation (64-char hex)
 - No sensitive data exposure in error messages

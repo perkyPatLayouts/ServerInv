@@ -64,6 +64,8 @@ ServerInv/
 │   │   ├── stores/
 │   │   │   ├── authStore.ts            # Auth state (token, user, role)
 │   │   │   └── themeStore.ts           # Theme persistence
+│   │   ├── utils/
+│   │   │   └── url.ts                  # URL protocol validation (safeHref)
 │   │   ├── types/
 │   │   │   └── index.ts                # TypeScript interfaces
 │   │   ├── App.tsx                     # Route definitions
@@ -92,9 +94,11 @@ ServerInv/
 │   │   ├── middleware/
 │   │   │   ├── auth.ts                 # JWT authentication + admin guard
 │   │   │   ├── errorHandler.ts         # Global error handler
+│   │   │   ├── rateLimit.ts            # Rate limiting for login & password reset
 │   │   │   └── validate.ts             # Zod request body validation
 │   │   ├── routes/
-│   │   │   ├── auth.ts                 # POST /api/auth/login
+│   │   │   ├── auth.ts                 # POST /api/auth/login, GET /api/auth/me
+│   │   │   ├── passwordReset.ts        # Password reset endpoints (forgot, verify, reset)
 │   │   │   ├── servers.ts              # CRUD /api/servers
 │   │   │   ├── apps.ts                 # CRUD /api/apps
 │   │   │   ├── serverApps.ts           # CRUD /api/servers/:id/apps

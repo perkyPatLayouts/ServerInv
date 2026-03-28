@@ -2,7 +2,7 @@
 
 Base URL: `/api`
 
-All endpoints except `/api/auth/login` require a valid JWT in the `Authorization` header:
+All endpoints except `/api/auth/login`, `/api/auth/forgot-password`, `/api/auth/verify-reset-token`, and `/api/auth/reset-password` require a valid JWT in the `Authorization` header:
 
 ```
 Authorization: Bearer <token>
@@ -41,6 +41,73 @@ Authenticate and receive a JWT.
 **Response (401):**
 ```json
 { "error": "Invalid credentials" }
+```
+
+**Response (429) — Rate limited (5 attempts per 15 minutes):**
+```json
+{ "error": "Too many login attempts. Please try again later." }
+```
+
+### POST /api/auth/forgot-password
+
+Request a password reset email. Always returns success even if the email doesn't exist (security best practice).
+
+**Rate limited:** 3 requests per 15 minutes per IP.
+
+**Request body:**
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Response (200):**
+```json
+{ "success": true, "message": "If that email exists, a reset link has been sent." }
+```
+
+**Response (429):**
+```json
+{ "error": "Too many password reset requests. Please try again later." }
+```
+
+### GET /api/auth/verify-reset-token
+
+Verify if a password reset token is valid and not expired.
+
+**Query parameters:**
+- `token` — 64-character hex string
+
+**Response (200):**
+```json
+{ "valid": true }
+```
+
+**Response (400):**
+```json
+{ "error": "Invalid or expired token" }
+```
+
+### POST /api/auth/reset-password
+
+Reset password using a valid token.
+
+**Request body:**
+```json
+{
+  "token": "64-character-hex-string",
+  "newPassword": "newpassword"
+}
+```
+
+**Response (200):**
+```json
+{ "success": true, "message": "Password has been reset successfully." }
+```
+
+**Response (400):**
+```json
+{ "error": "Invalid or expired token" }
 ```
 
 ---

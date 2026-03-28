@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { requireAdmin } from "../middleware/auth.js";
-import { execSync } from "child_process";
+import { spawnSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import multer, { FileFilterCallback } from "multer";
@@ -22,53 +22,55 @@ const upload = multer({
   },
 });
 
+/** Allowed command names for existence checks. */
+const ALLOWED_COMMANDS = new Set(["pg_dump", "psql", "mysqldump", "mysql", "docker"]);
+
 /** Check if a command exists on the host. */
 function commandExists(cmd: string): boolean {
+  if (!ALLOWED_COMMANDS.has(cmd)) return false;
   try {
-    execSync(`command -v ${cmd}`, { stdio: "pipe" });
-    return true;
+    const result = spawnSync("command", ["-v", cmd], { stdio: "pipe", shell: true });
+    return result.status === 0;
   } catch {
     return false;
   }
 }
 
-/** Parse PostgreSQL DATABASE_URL into components for docker exec usage. */
+/** Parse DATABASE_URL into components using the URL constructor. */
 function parseDbUrl(url: string) {
-  const m = url.match(/postgres(?:ql)?:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
-  if (!m) throw new Error("Invalid DATABASE_URL format");
-  return { user: m[1], password: m[2], host: m[3], port: m[4], database: m[5] };
-}
-
-/** Parse MySQL DATABASE_URL into components for docker exec usage. */
-function parseMysqlUrl(url: string) {
-  const m = url.match(/mysql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
-  if (!m) throw new Error("Invalid MySQL DATABASE_URL format");
-  return { user: m[1], password: m[2], host: m[3], port: m[4], database: m[5] };
+  const parsed = new URL(url);
+  const user = decodeURIComponent(parsed.username);
+  const password = decodeURIComponent(parsed.password);
+  const host = parsed.hostname;
+  const port = parsed.port;
+  const database = parsed.pathname.replace(/^\//, "");
+  if (!user || !host || !port || !database) {
+    throw new Error("Invalid DATABASE_URL format");
+  }
+  return { user, password, host, port, database };
 }
 
 /** Find the running postgres docker container name. */
 function getDockerContainer(): string {
-  const out = execSync(
-    'docker ps --filter "ancestor=postgres:16-alpine" --format "{{.Names}}"',
-    { stdio: "pipe" }
-  ).toString().trim();
+  const result = spawnSync("docker", [
+    "ps", "--filter", "ancestor=postgres:16-alpine", "--format", "{{.Names}}"
+  ], { stdio: "pipe" });
+  const out = result.stdout?.toString().trim() || "";
   if (!out) throw new Error("No running PostgreSQL Docker container found");
 
-  // Look for ServerInv container specifically (contains "serverinv" in name)
   const containers = out.split("\n");
   const serverinvContainer = containers.find(name => name.toLowerCase().includes("serverinv"));
   if (serverinvContainer) return serverinvContainer;
 
-  // Fallback to first container (for backward compatibility)
   return containers[0];
 }
 
 /** Find the running MySQL docker container name. */
 function getMysqlDockerContainer(): string {
-  const out = execSync(
-    'docker ps --filter "ancestor=mysql:8" --format "{{.Names}}"',
-    { stdio: "pipe" }
-  ).toString().trim();
+  const result = spawnSync("docker", [
+    "ps", "--filter", "ancestor=mysql:8", "--format", "{{.Names}}"
+  ], { stdio: "pipe" });
+  const out = result.stdout?.toString().trim() || "";
   if (!out) throw new Error("No running MySQL Docker container found");
 
   const containers = out.split("\n");
@@ -93,19 +95,37 @@ router.get("/download", requireAdmin, async (_req: Request, res: Response) => {
       const usePgDump = commandExists("pg_dump") || commandExists("docker");
 
       if (usePgDump) {
-        // Fast path: Use native pg_dump (VPS environments)
+        const db = parseDbUrl(dbUrl);
+        const outFd = fs.openSync(tmpFile, "w");
+
         if (commandExists("pg_dump")) {
-          execSync(`pg_dump "${dbUrl}" > "${tmpFile}"`, {
-            env: { ...process.env },
-            shell: '/bin/bash'
+          // Fast path: Use native pg_dump with env-based password
+          const result = spawnSync("pg_dump", [
+            "-h", db.host, "-p", db.port, "-U", db.user, db.database
+          ], {
+            stdio: ["pipe", outFd, "pipe"],
+            env: { ...process.env, PGPASSWORD: db.password }
           });
+          fs.closeSync(outFd);
+          if (result.status !== 0) {
+            throw new Error(`pg_dump failed: ${result.stderr?.toString()}`);
+          }
         } else {
-          const db = parseDbUrl(dbUrl);
+          // Docker path
           const container = getDockerContainer();
-          execSync(
-            `docker exec -i -e PGPASSWORD='${db.password.replace(/'/g, "'\\''")}' ${container} pg_dump -U ${db.user} -h localhost ${db.database} > "${tmpFile}"`,
-            { env: { ...process.env }, shell: '/bin/bash' }
-          );
+          const result = spawnSync("docker", [
+            "exec", "-i",
+            "-e", `PGPASSWORD=${db.password}`,
+            container,
+            "pg_dump", "-U", db.user, "-h", "localhost", db.database
+          ], {
+            stdio: ["pipe", outFd, "pipe"],
+            env: { ...process.env }
+          });
+          fs.closeSync(outFd);
+          if (result.status !== 0) {
+            throw new Error(`docker pg_dump failed: ${result.stderr?.toString()}`);
+          }
         }
       } else {
         // Pure Node.js backup (shared hosting environments)
@@ -119,12 +139,20 @@ router.get("/download", requireAdmin, async (_req: Request, res: Response) => {
       const useMysqldump = commandExists("mysqldump");
 
       if (useMysqldump) {
-        // Fast path: Use native mysqldump
-        const db = parseMysqlUrl(dbUrl);
-        execSync(
-          `mysqldump -h ${db.host} -P ${db.port} -u ${db.user} -p'${db.password.replace(/'/g, "'\\''")}' ${db.database} > "${tmpFile}"`,
-          { env: { ...process.env }, shell: '/bin/bash' }
-        );
+        const db = parseDbUrl(dbUrl);
+        const outFd = fs.openSync(tmpFile, "w");
+
+        // Fast path: Use native mysqldump with env-based password
+        const result = spawnSync("mysqldump", [
+          "-h", db.host, "-P", db.port, "-u", db.user, db.database
+        ], {
+          stdio: ["pipe", outFd, "pipe"],
+          env: { ...process.env, MYSQL_PWD: db.password }
+        });
+        fs.closeSync(outFd);
+        if (result.status !== 0) {
+          throw new Error(`mysqldump failed: ${result.stderr?.toString()}`);
+        }
       } else {
         // Pure Node.js backup (shared hosting environments)
         console.log("Using pure Node.js MySQL backup (mysqldump not available)");
@@ -172,24 +200,37 @@ router.post("/restore", requireAdmin, upload.single("backup"), async (req: Reque
       const usePsql = commandExists("psql") || commandExists("docker");
 
       if (usePsql) {
-        // Fast path: Use native psql (VPS environments)
+        const db = parseDbUrl(dbUrl);
+        const inFd = fs.openSync(tmpFile, "r");
+
         if (commandExists("psql")) {
-          execSync(`psql "${dbUrl}" < "${tmpFile}"`, {
-            stdio: "pipe",
-            env: { ...process.env },
-            shell: '/bin/bash'
+          // Fast path: Use native psql with env-based password
+          const result = spawnSync("psql", [
+            "-h", db.host, "-p", db.port, "-U", db.user, db.database
+          ], {
+            stdio: [inFd, "pipe", "pipe"],
+            env: { ...process.env, PGPASSWORD: db.password }
           });
+          fs.closeSync(inFd);
+          if (result.status !== 0) {
+            throw new Error(`psql restore failed: ${result.stderr?.toString()}`);
+          }
         } else {
-          const db = parseDbUrl(dbUrl);
+          // Docker path
           const container = getDockerContainer();
-          execSync(
-            `docker exec -i -e PGPASSWORD='${db.password.replace(/'/g, "'\\''")}' ${container} psql -U ${db.user} -h localhost ${db.database} < "${tmpFile}"`,
-            {
-              stdio: ["pipe", "pipe", "pipe"],
-              env: { ...process.env },
-              shell: '/bin/bash'
-            }
-          );
+          const result = spawnSync("docker", [
+            "exec", "-i",
+            "-e", `PGPASSWORD=${db.password}`,
+            container,
+            "psql", "-U", db.user, "-h", "localhost", db.database
+          ], {
+            stdio: [inFd, "pipe", "pipe"],
+            env: { ...process.env }
+          });
+          fs.closeSync(inFd);
+          if (result.status !== 0) {
+            throw new Error(`docker psql restore failed: ${result.stderr?.toString()}`);
+          }
         }
       } else {
         // Pure Node.js restore (shared hosting environments)
@@ -203,16 +244,20 @@ router.post("/restore", requireAdmin, upload.single("backup"), async (req: Reque
       const useMysql = commandExists("mysql");
 
       if (useMysql) {
-        // Fast path: Use native mysql client
-        const db = parseMysqlUrl(dbUrl);
-        execSync(
-          `mysql -h ${db.host} -P ${db.port} -u ${db.user} -p'${db.password.replace(/'/g, "'\\''")}' ${db.database} < "${tmpFile}"`,
-          {
-            stdio: "pipe",
-            env: { ...process.env },
-            shell: '/bin/bash'
-          }
-        );
+        const db = parseDbUrl(dbUrl);
+        const inFd = fs.openSync(tmpFile, "r");
+
+        // Fast path: Use native mysql client with env-based password
+        const result = spawnSync("mysql", [
+          "-h", db.host, "-P", db.port, "-u", db.user, db.database
+        ], {
+          stdio: [inFd, "pipe", "pipe"],
+          env: { ...process.env, MYSQL_PWD: db.password }
+        });
+        fs.closeSync(inFd);
+        if (result.status !== 0) {
+          throw new Error(`mysql restore failed: ${result.stderr?.toString()}`);
+        }
       } else {
         // Pure Node.js restore (shared hosting environments)
         console.log("Using pure Node.js MySQL restore (mysql not available)");

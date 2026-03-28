@@ -12,6 +12,7 @@ import ServerFormModal from "../components/forms/ServerFormModal";
 import WebsitesModal from "../components/forms/WebsitesModal";
 import ServerAppsModal from "../components/forms/ServerAppsModal";
 import MultiSelect from "../components/ui/MultiSelect";
+import { safeHref } from "../utils/url";
 
 /** Returns true if the date is within 14 days from now or already past. */
 function isDueSoon(dateStr: string | null): boolean {
@@ -22,16 +23,18 @@ function isDueSoon(dateStr: string | null): boolean {
 
 /** Renders a provider name as a link with optional CP badge. */
 function ProviderLink({ name, siteUrl, cpUrl }: { name: string; siteUrl?: string | null; cpUrl?: string | null }) {
+  const safeSite = safeHref(siteUrl);
+  const safeCp = safeHref(cpUrl);
   return (
     <span className="inline-flex items-center gap-1.5">
-      {siteUrl ? (
-        <a href={siteUrl} target="_blank" rel="noopener" className="text-accent hover:underline">{name}</a>
+      {safeSite ? (
+        <a href={safeSite} target="_blank" rel="noopener" className="text-accent hover:underline">{name}</a>
       ) : (
         <span>{name}</span>
       )}
-      {cpUrl && (
+      {safeCp && (
         <a
-          href={cpUrl}
+          href={safeCp}
           target="_blank"
           rel="noopener"
           className="text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent hover:bg-accent/30 font-medium leading-none"
@@ -368,7 +371,7 @@ export default function InventoryPage() {
                     <div className="min-w-0">
                       <span className="text-text-secondary text-xs">URL</span>
                       <div className="truncate">
-                        <a href={s.url.startsWith("http") ? s.url : `https://${s.url}`} target="_blank" rel="noopener" className="text-accent hover:underline">{s.url}</a>
+                        <a href={safeHref(s.url)!} target="_blank" rel="noopener" className="text-accent hover:underline">{s.url}</a>
                       </div>
                     </div>
                   )}
@@ -410,9 +413,9 @@ export default function InventoryPage() {
                           <span className="text-xs bg-surface-hover text-text-primary px-2 py-0.5 rounded">
                             {app.appName}
                           </span>
-                          {app.url && (
+                          {app.url && safeHref(app.url) && (
                             <a
-                              href={app.url.startsWith("http") ? app.url : `https://${app.url}`}
+                              href={safeHref(app.url)!}
                               target="_blank"
                               rel="noopener"
                               className="text-[10px] text-accent hover:underline px-2"

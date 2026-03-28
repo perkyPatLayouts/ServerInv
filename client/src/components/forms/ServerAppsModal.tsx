@@ -6,6 +6,7 @@ import Modal from "../ui/Modal";
 import Input from "../ui/Input";
 import Select from "../ui/Select";
 import Button from "../ui/Button";
+import { safeHref } from "../../utils/url";
 
 interface Props {
   open: boolean;
@@ -62,9 +63,9 @@ export default function ServerAppsModal({ open, server, onClose }: Props) {
           <div key={sa.id} className="flex items-start justify-between border border-border rounded px-3 py-2 gap-3">
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium text-text-primary">{sa.appName}</div>
-              {sa.url && (
+              {sa.url && safeHref(sa.url) && (
                 <a
-                  href={sa.url.startsWith("http") ? sa.url : `https://${sa.url}`}
+                  href={safeHref(sa.url)!}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs text-accent hover:underline break-all"
