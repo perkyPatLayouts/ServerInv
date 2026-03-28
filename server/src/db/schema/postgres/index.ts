@@ -1,4 +1,5 @@
 export { users } from "./users.js";
+export { passwordResetTokens } from "./passwordResetTokens.js";
 export { currencies } from "./currencies.js";
 export { locations } from "./locations.js";
 export { providers } from "./providers.js";

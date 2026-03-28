@@ -8,6 +8,13 @@
       "when": 1774622958448,
       "tag": "0000_wise_dagger",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1774743000000,
+      "tag": "0004_add_password_reset",
+      "breakpoints": true
     }
   ]
 }

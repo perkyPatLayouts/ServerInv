@@ -34,6 +34,7 @@ export default function UsersPage() {
           data={list.data || []}
           columns={[
             { accessorKey: "username", header: "Username" },
+            { accessorKey: "email", header: "Email" },
             { accessorKey: "role", header: "Role" },
             {
               id: "actions",
@@ -56,6 +57,7 @@ export default function UsersPage() {
                   </div>
                   <div className="min-w-0">
                     <h3 className="font-semibold text-text-primary truncate">{row.original.username}</h3>
+                    {row.original.email && <p className="text-xs text-text-secondary truncate mt-0.5">{row.original.email}</p>}
                     <span className={`inline-block text-xs px-2 py-0.5 rounded-full mt-0.5 ${row.original.role === "admin" ? "bg-accent/10 text-accent" : row.original.role === "editor" ? "bg-success/10 text-success" : "bg-border text-text-secondary"}`}>
                       {row.original.role === "admin" ? "Administrator" : row.original.role === "editor" ? "Editor" : "Viewer"}
                     </span>
@@ -99,16 +101,16 @@ function UserFormModal({ open, user, onClose, create, update }: {
   update: any;
 }) {
   const { register, handleSubmit, formState: { errors } } = useForm({
-    defaultValues: user ? { username: user.username, password: "", role: user.role } : { username: "", password: "", role: "viewer" },
+    defaultValues: user ? { username: user.username, email: user.email || "", password: "", role: user.role } : { username: "", email: "", password: "", role: "viewer" },
   });
 
   const onSubmit = async (data: any) => {
     if (user) {
-      const payload: any = { id: user.id, username: data.username, role: data.role };
+      const payload: any = { id: user.id, username: data.username, email: data.email || null, role: data.role };
       if (data.password) payload.password = data.password;
       await update.mutateAsync(payload);
     } else {
-      await create.mutateAsync(data);
+      await create.mutateAsync({ ...data, email: data.email || null });
     }
     onClose();
   };
@@ -117,6 +119,7 @@ function UserFormModal({ open, user, onClose, create, update }: {
     <Modal open={open} onClose={onClose} title={user ? "Edit User" : "Add User"}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Input label="Username" {...register("username", { required: "Required" })} error={errors.username?.message as string} />
+        <Input label="Email (optional)" type="email" {...register("email")} error={errors.email?.message as string} placeholder="user@example.com" />
         <Input label={user ? "New Password (leave blank to keep)" : "Password"} type="password" {...register("password", user ? {} : { required: "Required", minLength: { value: 4, message: "Min 4 chars" } })} error={errors.password?.message as string} />
         <Select
           label="Role"

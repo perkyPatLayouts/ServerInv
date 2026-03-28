@@ -139,21 +139,31 @@ Use `.env.example` as template.
 
 1. **User Management**
    - Use strong, unique passwords for all users
+   - **Require email addresses** for all users to enable password reset functionality
    - Assign minimum necessary role (viewer > editor > admin)
    - Regularly review user accounts and remove unused ones
    - Change admin password periodically
 
-2. **Backup Security**
+2. **Password Reset Security**
+   - Configure SMTP for password reset emails
+   - Use app-specific passwords for Gmail/Google Workspace SMTP
+   - Store SMTP credentials securely in .env file (never commit to git)
+   - Password reset tokens expire after 1 hour
+   - Tokens are hashed before storage in database
+   - Each token can only be used once
+   - Monitor password reset emails for suspicious activity
+
+3. **Backup Security**
    - Store backups in secure location (SFTP server with SSH keys)
    - Encrypt backups if storing sensitive data
    - Test restore procedure regularly
    - Maintain backup retention policy (e.g., keep last 30 days)
 
-3. **System Updates**
+4. **System Updates**
    - Keep Node.js updated (currently requires v20.x)
    - Run `npm audit` periodically to check for dependency vulnerabilities
    - Apply security updates promptly: `npm audit fix`
-   - Monitor PostgreSQL security advisories
+   - Monitor PostgreSQL/MySQL security advisories
 
 ### For Editors
 

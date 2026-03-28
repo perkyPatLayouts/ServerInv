@@ -4,6 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import { errorHandler } from "./middleware/errorHandler.js";
 import authRoutes from "./routes/auth.js";
+import passwordResetRoutes from "./routes/passwordReset.js";
 import serverRoutes from "./routes/servers.js";
 import websiteRoutes from "./routes/websites.js";
 import appRoutes from "./routes/apps.js";
@@ -47,6 +48,7 @@ app.use(express.json());
 
 // Public routes
 app.use("/api/auth", authRoutes);
+app.use("/api/auth", passwordResetRoutes);
 
 // Protected routes
 app.use("/api/servers", authenticate, serverRoutes);

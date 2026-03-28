@@ -258,6 +258,34 @@ if [[ "$add_origins" =~ ^[Yy]$ ]]; then
   fi
 fi
 
+# Prompt for SMTP configuration (optional, for password reset emails)
+echo ""
+echo -e "${BLUE}SMTP Configuration (Optional - for password reset emails)${NC}"
+echo "Leave blank to skip SMTP configuration."
+echo ""
+SMTP_HOST=""
+SMTP_PORT="587"
+SMTP_USER=""
+SMTP_PASS=""
+SMTP_FROM=""
+
+read -p "Do you want to configure SMTP for password reset emails? (y/N): " configure_smtp
+if [[ "$configure_smtp" =~ ^[Yy]$ ]]; then
+  read -p "SMTP server hostname (e.g., smtp.gmail.com): " SMTP_HOST
+  if [ -n "$SMTP_HOST" ]; then
+    read -p "SMTP port [587]: " smtp_port_input
+    SMTP_PORT="${smtp_port_input:-587}"
+    read -p "SMTP username/email: " SMTP_USER
+    read -sp "SMTP password: " SMTP_PASS
+    echo
+    read -p "From email address [$SMTP_USER]: " smtp_from_input
+    SMTP_FROM="${smtp_from_input:-$SMTP_USER}"
+    echo -e "${GREEN}✓ SMTP configured${NC}"
+  else
+    echo "Skipping SMTP configuration (no hostname provided)"
+  fi
+fi
+
 # Create .env files
 echo ""
 echo -e "${BLUE}Creating environment configuration...${NC}"
@@ -274,6 +302,14 @@ NODE_ENV=production
 
 # CORS
 ALLOWED_ORIGINS=$ALLOWED_ORIGINS
+APP_URL=https://$DOMAIN
+
+# SMTP Configuration (for password reset emails)
+SMTP_HOST=$SMTP_HOST
+SMTP_PORT=$SMTP_PORT
+SMTP_USER=$SMTP_USER
+SMTP_PASS=$SMTP_PASS
+SMTP_FROM=$SMTP_FROM
 
 # Shared Hosting Configuration
 TMP_DIR=$APP_DIR/tmp

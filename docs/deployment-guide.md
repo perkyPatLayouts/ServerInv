@@ -173,6 +173,35 @@ sudo chown serverinv:serverinv /opt/serverinv/.env /opt/serverinv/server/.env
 | `DATABASE_URL` | Database connection string (postgres:// or mysql://) - auto-detects type |
 | `JWT_SECRET` | Random secret for signing JWTs (minimum 32 hex chars) |
 | `PORT` | Backend listen port (default `3000`) |
+| `ALLOWED_ORIGINS` | Comma-separated list of allowed CORS origins |
+| `APP_URL` | Full URL of the application (for password reset emails) |
+| `SMTP_HOST` | SMTP server hostname (optional, for password reset emails) |
+| `SMTP_PORT` | SMTP server port (optional, default `587`) |
+| `SMTP_USER` | SMTP username/email (optional) |
+| `SMTP_PASS` | SMTP password (optional) |
+| `SMTP_FROM` | From email address (optional, defaults to SMTP_USER) |
+
+**Note:** SMTP configuration is optional. If not configured, the password reset feature will be disabled. Users will need to contact an administrator to reset their passwords.
+
+**Example SMTP configurations:**
+
+Gmail:
+```bash
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-specific-password
+SMTP_FROM=your-email@gmail.com
+```
+
+SendGrid:
+```bash
+SMTP_HOST=smtp.sendgrid.net
+SMTP_PORT=587
+SMTP_USER=apikey
+SMTP_PASS=your-sendgrid-api-key
+SMTP_FROM=noreply@yourdomain.com
+```
 
 ### 7. Install Dependencies and Build
 

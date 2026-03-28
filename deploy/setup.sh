@@ -333,6 +333,34 @@ if [[ "$add_origins" =~ ^[Yy]$ ]]; then
   fi
 fi
 
+# Prompt for SMTP configuration (optional, for password reset emails)
+echo ""
+echo "==> SMTP Configuration (Optional - for password reset emails)"
+echo "    Leave blank to skip SMTP configuration."
+echo ""
+SMTP_HOST=""
+SMTP_PORT="587"
+SMTP_USER=""
+SMTP_PASS=""
+SMTP_FROM=""
+
+read -rp "Do you want to configure SMTP for password reset emails? (y/N): " configure_smtp
+if [[ "$configure_smtp" =~ ^[Yy]$ ]]; then
+  read -rp "SMTP server hostname (e.g., smtp.gmail.com): " SMTP_HOST
+  if [ -n "$SMTP_HOST" ]; then
+    read -rp "SMTP port [587]: " smtp_port_input
+    SMTP_PORT="${smtp_port_input:-587}"
+    read -rp "SMTP username/email: " SMTP_USER
+    read -sp "SMTP password: " SMTP_PASS
+    echo
+    read -rp "From email address [$SMTP_USER]: " smtp_from_input
+    SMTP_FROM="${smtp_from_input:-$SMTP_USER}"
+    echo "✓ SMTP configured"
+  else
+    echo "Skipping SMTP configuration (no hostname provided)"
+  fi
+fi
+
 echo ""
 echo "==> Creating .env"
 cat > $APP_DIR/.env << EOF
@@ -340,6 +368,14 @@ DATABASE_URL=$DATABASE_URL
 JWT_SECRET=$JWT_SECRET
 PORT=3000
 ALLOWED_ORIGINS=$ALLOWED_ORIGINS
+APP_URL=https://$APP_DOMAIN
+
+# SMTP Configuration (for password reset emails)
+SMTP_HOST=$SMTP_HOST
+SMTP_PORT=$SMTP_PORT
+SMTP_USER=$SMTP_USER
+SMTP_PASS=$SMTP_PASS
+SMTP_FROM=$SMTP_FROM
 EOF
 cp $APP_DIR/.env $APP_DIR/server/.env
 chown $APP_USER:$APP_USER $APP_DIR/.env $APP_DIR/server/.env

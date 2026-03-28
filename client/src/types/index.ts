@@ -73,6 +73,6 @@ export interface BillingPeriod { id: number; name: string; }
 export interface PaymentMethod { id: number; name: string; }
 export interface CpuType { id: number; type: string; cores: number; speed: string; }
 export interface OperatingSystem { id: number; name: string; version: string; variant: string; }
-export interface User { id: number; username: string; role: string; createdAt?: string; }
+export interface User { id: number; username: string; email: string | null; role: string; createdAt?: string; }
 export interface BackupConfig { id: number; host: string; port: number; username: string; password: string | null; privateKey: string | null; remotePath: string; }
 export interface BackupFile { name: string; size: number; modifyTime: number; }

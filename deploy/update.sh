@@ -96,6 +96,57 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
   fi
 fi
 
+# Optional: Update SMTP configuration
+echo ""
+echo "==> SMTP Configuration"
+read -p "Do you want to update SMTP settings? (y/N): " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+  echo ""
+  echo "Current SMTP configuration:"
+  grep -E "SMTP_HOST|SMTP_PORT|SMTP_USER|SMTP_FROM" "$APP_DIR/server/.env" || echo "  (not configured)"
+  echo ""
+  echo "Configure SMTP for password reset emails."
+  read -p "SMTP server hostname (e.g., smtp.gmail.com): " smtp_host
+  if [ -n "$smtp_host" ]; then
+    read -p "SMTP port [587]: " smtp_port
+    SMTP_PORT="${smtp_port:-587}"
+    read -p "SMTP username/email: " smtp_user
+    read -sp "SMTP password: " smtp_pass
+    echo
+    read -p "From email address [$smtp_user]: " smtp_from
+    SMTP_FROM="${smtp_from:-$smtp_user}"
+
+    # Update SMTP settings in server/.env
+    for var in "SMTP_HOST=$smtp_host" "SMTP_PORT=$SMTP_PORT" "SMTP_USER=$smtp_user" "SMTP_PASS=$smtp_pass" "SMTP_FROM=$SMTP_FROM"; do
+      key=$(echo "$var" | cut -d= -f1)
+      value=$(echo "$var" | cut -d= -f2-)
+      if grep -q "^$key=" "$APP_DIR/server/.env"; then
+        sed -i "s|^$key=.*|$key=$value|" "$APP_DIR/server/.env"
+      else
+        echo "$key=$value" >> "$APP_DIR/server/.env"
+      fi
+    done
+
+    # Also update root .env if it exists
+    if [ -f "$APP_DIR/.env" ]; then
+      for var in "SMTP_HOST=$smtp_host" "SMTP_PORT=$SMTP_PORT" "SMTP_USER=$smtp_user" "SMTP_PASS=$smtp_pass" "SMTP_FROM=$SMTP_FROM"; do
+        key=$(echo "$var" | cut -d= -f1)
+        value=$(echo "$var" | cut -d= -f2-)
+        if grep -q "^$key=" "$APP_DIR/.env"; then
+          sed -i "s|^$key=.*|$key=$value|" "$APP_DIR/.env"
+        else
+          echo "$key=$value" >> "$APP_DIR/.env"
+        fi
+      done
+    fi
+
+    echo "✓ SMTP configuration updated"
+  else
+    echo "No SMTP host entered. Skipping SMTP update."
+  fi
+fi
+
 echo ""
 echo "==> Restarting ServerInv service"
 systemctl start serverinv

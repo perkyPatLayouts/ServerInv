@@ -30,30 +30,35 @@ router.put("/me/password", validate(changePasswordSchema), async (req: Request, 
 const createUserSchema = z.object({
   username: z.string().min(1).max(100),
   password: z.string().min(4),
+  email: z.string().email().optional().nullable(),
   role: z.enum(["admin", "editor", "viewer"]),
 });
 
 const updateUserSchema = z.object({
   username: z.string().min(1).max(100).optional(),
   password: z.string().min(4).optional(),
+  email: z.string().email().optional().nullable(),
   role: z.enum(["admin", "editor", "viewer"]).optional(),
 });
 
 /** GET /api/users — admin only */
 router.get("/", requireAdmin, async (_req: Request, res: Response) => {
-  const rows = await db.select({ id: users.id, username: users.username, role: users.role, createdAt: users.createdAt }).from(users);
+  const rows = await db.select({ id: users.id, username: users.username, email: users.email, role: users.role, createdAt: users.createdAt }).from(users);
   res.json(rows);
 });
 
 /** POST /api/users — admin only */
 router.post("/", requireAdmin, validate(createUserSchema), async (req: Request, res: Response) => {
-  const { username, password, role } = req.body;
+  const { username, password, email, role } = req.body;
   const hash = await hashPassword(password);
   try {
-    const [row] = await db.insert(users).values({ username, password: hash, role }).returning({ id: users.id, username: users.username, role: users.role });
+    const [row] = await db.insert(users).values({ username, password: hash, email, role }).returning({ id: users.id, username: users.username, email: users.email, role: users.role });
     res.status(201).json(row);
   } catch (err: any) {
-    if (err.code === "23505") { res.status(409).json({ error: "Username already exists" }); return; }
+    if (err.code === "23505" || err.code === "ER_DUP_ENTRY") {
+      res.status(409).json({ error: "Username or email already exists" });
+      return;
+    }
     throw err;
   }
 });
@@ -63,14 +68,18 @@ router.put("/:id", requireAdmin, validate(updateUserSchema), async (req: Request
   const updates: any = {};
   if (req.body.username) updates.username = req.body.username;
   if (req.body.password) updates.password = await hashPassword(req.body.password);
+  if (req.body.email !== undefined) updates.email = req.body.email;
   if (req.body.role) updates.role = req.body.role;
   updates.updatedAt = new Date();
   try {
-    const [row] = await db.update(users).set(updates).where(eq(users.id, +req.params.id)).returning({ id: users.id, username: users.username, role: users.role });
+    const [row] = await db.update(users).set(updates).where(eq(users.id, +req.params.id)).returning({ id: users.id, username: users.username, email: users.email, role: users.role });
     if (!row) { res.status(404).json({ error: "Not found" }); return; }
     res.json(row);
   } catch (err: any) {
-    if (err.code === "23505") { res.status(409).json({ error: "Username already exists" }); return; }
+    if (err.code === "23505" || err.code === "ER_DUP_ENTRY") {
+      res.status(409).json({ error: "Username or email already exists" });
+      return;
+    }
     throw err;
   }
 });

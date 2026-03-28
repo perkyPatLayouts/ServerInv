@@ -11,9 +11,21 @@ Navigate to the application URL. You will see a login screen. Enter your usernam
 - **Default credentials**: `admin` / `admin`
 - Change your password immediately after first login via the Users page.
 
-### Lost Admin Credentials
+### Forgot Your Password?
 
-If you've lost access to your admin account, the system administrator can reset it using the admin reset tool:
+If you've forgotten your password and have an email address associated with your account:
+
+1. Click "Forgot password?" on the login page
+2. Enter your email address
+3. Check your email for a password reset link
+4. Click the link and enter your new password
+5. The link expires after 1 hour
+
+**Note:** Password reset emails require SMTP to be configured by your administrator. If SMTP is not configured, contact your administrator to reset your password manually.
+
+### Lost Admin Credentials (Administrator Recovery)
+
+If you've lost access to your admin account or need to manually reset a password, the system administrator can use the admin reset tool:
 
 **VPS/Dedicated Server:**
 ```bash
