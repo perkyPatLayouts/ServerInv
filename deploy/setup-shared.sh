@@ -90,6 +90,10 @@ while [ -z "$DOMAIN" ]; do
 done
 
 echo ""
+echo -e "${GREEN}ℹ️  Application URL will be set to: https://$DOMAIN${NC}"
+echo "   This URL is used for password reset email links."
+
+echo ""
 echo "=========================================="
 echo "  Database Selection"
 echo "=========================================="

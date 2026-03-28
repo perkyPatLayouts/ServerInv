@@ -465,7 +465,10 @@ This script will:
 4. Rebuild the frontend
 5. Run database migrations
 6. **Optionally prompt you to create/update admin credentials** (recommended if login was lost)
-7. Restart the service and show its status
+7. **Optionally update ALLOWED_ORIGINS** (CORS configuration)
+8. **Optionally update APP_URL** (for password reset email links)
+9. **Optionally update SMTP settings** (for email functionality)
+10. Restart the service and show its status
 
 #### Resetting Admin Credentials
 
@@ -483,6 +486,22 @@ Both methods will:
 - Create a new admin user if the username doesn't exist
 - Update the password and ensure admin role if the username already exists
 - Work with both PostgreSQL and MySQL databases
+
+#### Updating Application URL (APP_URL)
+
+If password reset email links are pointing to the wrong URL (e.g., localhost instead of your domain), update the APP_URL:
+
+1. **During update** - The update script will prompt you to update APP_URL
+2. **Manual edit** - Edit `/opt/serverinv/server/.env` and set:
+   ```bash
+   APP_URL=https://your-domain.com
+   ```
+   Then restart the service:
+   ```bash
+   sudo systemctl restart serverinv
+   ```
+
+The APP_URL should match the domain where your application is accessible (e.g., `https://serverinv.example.com`).
 
 ### Manual Update
 

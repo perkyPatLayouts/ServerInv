@@ -96,6 +96,47 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
   fi
 fi
 
+# Optional: Update APP_URL
+echo ""
+echo "==> Application URL Configuration"
+read -p "Do you want to update APP_URL (for password reset links)? (y/N): " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+  echo ""
+  echo "Current APP_URL in .env:"
+  grep APP_URL "$APP_DIR/server/.env" || echo "  (not found)"
+  echo ""
+  echo "Enter the full URL where your application is accessible."
+  echo "Examples:"
+  echo "  - https://serverinv.example.com"
+  echo "  - https://inventory.mycompany.com"
+  echo "  - http://example.com:3000 (if not using SSL)"
+  echo ""
+  read -p "Application URL: " app_url
+  if [ -n "$app_url" ]; then
+    # Update APP_URL in server/.env
+    if grep -q "^APP_URL=" "$APP_DIR/server/.env"; then
+      sed -i "s|^APP_URL=.*|APP_URL=$app_url|" "$APP_DIR/server/.env"
+      echo "✓ Updated APP_URL in $APP_DIR/server/.env"
+    else
+      echo "APP_URL=$app_url" >> "$APP_DIR/server/.env"
+      echo "✓ Added APP_URL to $APP_DIR/server/.env"
+    fi
+
+    # Also update root .env if it exists
+    if [ -f "$APP_DIR/.env" ]; then
+      if grep -q "^APP_URL=" "$APP_DIR/.env"; then
+        sed -i "s|^APP_URL=.*|APP_URL=$app_url|" "$APP_DIR/.env"
+      else
+        echo "APP_URL=$app_url" >> "$APP_DIR/.env"
+      fi
+      echo "✓ Updated APP_URL in $APP_DIR/.env"
+    fi
+  else
+    echo "No URL entered. Skipping APP_URL update."
+  fi
+fi
+
 # Optional: Update SMTP configuration
 echo ""
 echo "==> SMTP Configuration"

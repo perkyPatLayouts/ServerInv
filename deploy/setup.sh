@@ -50,6 +50,10 @@ while true; do
 done
 
 echo ""
+echo "ℹ️  Application URL will be set to: https://$APP_DOMAIN"
+echo "   This URL is used for password reset email links."
+echo ""
+
 echo "==> Detecting existing web servers..."
 
 # Detect existing web servers
