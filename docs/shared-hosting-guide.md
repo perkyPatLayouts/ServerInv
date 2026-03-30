@@ -1079,6 +1079,27 @@ This is normal on shared hosting. The pure Node.js backup method is slower than 
 
 For databases >1GB, consider VPS hosting instead.
 
+### Permission Denied Errors When Copying .git Directory
+
+**Error**: `cp: cannot create regular file '/home/user/serverinv/.git/...': Permission denied`
+
+**Cause**: Old .git directory exists from previous installation with restrictive permissions.
+
+**Solution**:
+```bash
+# Remove the old installation completely
+rm -rf ~/serverinv
+
+# Clone fresh from git
+git clone https://github.com/yourusername/serverinv.git ~/serverinv
+cd ~/serverinv
+
+# Run deployment script
+bash deploy/setup-shared.sh
+```
+
+**Note**: The updated deployment script now automatically removes old files before copying, preventing this issue in future deployments.
+
 ### Vite Build Error: "fatal: not a git repository"
 
 **Error**: `git rev-list --count HEAD` fails during client build with "not a git repository"
