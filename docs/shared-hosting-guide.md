@@ -1,6 +1,6 @@
 # ServerInv Shared Hosting Deployment Guide
 
-This guide covers deploying ServerInv to shared hosting environments running cPanel or DirectAdmin with Apache, LiteSpeed, or other web servers.
+This guide covers deploying ServerInv to shared hosting environments running cPanel, DirectAdmin, or VirtualMin GPL with Apache, LiteSpeed, or other web servers.
 
 **Already deployed?** See the **[Update Guide](./update-guide.md)** for updating an existing installation.
 
@@ -11,6 +11,7 @@ This guide covers deploying ServerInv to shared hosting environments running cPa
 - [Quick Start](#quick-start)
 - [cPanel Deployment](#cpanel-deployment)
 - [DirectAdmin Deployment](#directadmin-deployment)
+- [VirtualMin GPL Deployment](#virtualmin-gpl-deployment)
 - [LiteSpeed Configuration](#litespeed-configuration)
 - [Configuration](#configuration)
 - [Troubleshooting](#troubleshooting)
@@ -23,7 +24,7 @@ This guide covers deploying ServerInv to shared hosting environments running cPa
 
 ### Hosting Requirements
 
-- **Control Panel**: cPanel 11.110+ or DirectAdmin 1.60+
+- **Control Panel**: cPanel 11.110+, DirectAdmin 1.60+, or VirtualMin GPL 6.0+
 - **Web Server**: Apache, LiteSpeed, or compatible (reads .htaccess files)
 - **Node.js**: Version 20 or higher
 - **Database**: MySQL 8+ / MariaDB 10+ (recommended) or PostgreSQL 12+ (if available)
@@ -94,6 +95,13 @@ Choose MySQL/MariaDB (most common) or PostgreSQL (if available):
 4. Create new user with strong password
 5. Grant all privileges
 
+**VirtualMin GPL:**
+1. Log into VirtualMin
+2. Go to "Edit Databases" > "PostgreSQL"
+3. Create new database (e.g., `serverinv`)
+4. Create new user with strong password
+5. Grant ALL privileges to the user on the database
+
 ### 2. Install/Enable Node.js
 
 **cPanel:**
@@ -106,6 +114,17 @@ Choose MySQL/MariaDB (most common) or PostgreSQL (if available):
 1. Go to "Node.js Selector"
 2. Install Node.js 20 or higher
 3. Enable for your account
+
+**VirtualMin GPL:**
+1. SSH into your account
+2. Install Node.js 20+ via nvm (if not already available):
+   ```bash
+   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+   source ~/.bashrc
+   nvm install 20
+   nvm use 20
+   ```
+3. Or ask your hosting provider to install Node.js 20+ system-wide
 
 ### 3. Enable SSH Access
 
@@ -130,12 +149,12 @@ bash deploy/setup-shared.sh
 ```
 
 The script will:
-- Detect your control panel (cPanel or DirectAdmin)
+- Detect your control panel (cPanel, DirectAdmin, or VirtualMin GPL)
 - Prompt for configuration (domain, database credentials)
 - Install dependencies
 - Build the application
 - Set up the database
-- Provide next-step instructions
+- Provide next-step instructions specific to your control panel
 
 ## cPanel Deployment
 
@@ -347,6 +366,226 @@ RewriteRule . /index.html [L]
 ### Step 6: Test Deployment
 
 Same as cPanel Step 6.
+
+## VirtualMin GPL Deployment
+
+VirtualMin GPL is a free, open-source hosting control panel that provides powerful server management features similar to cPanel and DirectAdmin.
+
+### Step 1: Deploy the Application
+
+```bash
+# SSH into your account
+ssh username@yourdomain.com
+
+# Navigate to the project directory
+cd ~/serverinv
+
+# Run deployment script
+bash deploy/setup-shared.sh
+```
+
+The script will auto-detect VirtualMin and provide VirtualMin-specific instructions.
+
+Follow the prompts:
+- **Domain name**: Your subdomain (e.g., `serverinv.yourdomain.com`)
+- **Database type**: Choose MySQL or PostgreSQL
+- **Database name**: Your database name (e.g., `username_serverinv`)
+- **Database username**: Your database username
+- **Database password**: Your database password
+- **App directory**: Leave default (`~/serverinv`) or customize
+
+### Step 2: Start Node.js Application
+
+VirtualMin uses systemd user services for Node.js applications:
+
+```bash
+# Check if service was created
+systemctl --user status serverinv
+
+# Start the service (if not already running)
+systemctl --user start serverinv
+
+# Enable auto-start on boot
+systemctl --user enable serverinv
+
+# View logs
+journalctl --user -u serverinv -f
+```
+
+**Note**: The deployment script automatically creates and starts the systemd service.
+
+### Step 3: Configure Virtual Server
+
+1. Log into VirtualMin
+2. Go to **"Create Virtual Server"** (or use existing virtual server)
+3. If creating new:
+   - **Domain name**: `serverinv.yourdomain.com`
+   - **Administration username**: Your existing user
+   - **Administration password**: Your password
+   - Click "Create Server"
+4. If using existing server:
+   - Go to **"Server Configuration"** > **"Website Options"**
+
+### Step 4: Set Document Root
+
+**Option A: Via VirtualMin UI**
+1. Go to **"Server Configuration"** > **"Website Options"**
+2. Set **"Document root"** to: `~/serverinv/client/dist`
+3. Click "Save"
+
+**Option B: Via Symbolic Link**
+```bash
+# Create symbolic link from public_html to dist
+ln -s ~/serverinv/client/dist ~/public_html/serverinv
+```
+
+### Step 5: Configure Reverse Proxy
+
+**Option A: Via VirtualMin UI (if available)**
+1. Go to **"Server Configuration"** > **"Edit Proxy Balancers"**
+2. Add new proxy:
+   - **URL path**: `/api`
+   - **Destination URL**: `http://localhost:3000/api`
+   - **Proxy type**: HTTP
+3. Click "Create"
+
+**Option B: Manual .htaccess (most common)**
+
+Create or edit `~/serverinv/client/dist/.htaccess`:
+
+```apache
+# Enable rewrite engine
+RewriteEngine On
+
+# Proxy API requests to Node.js backend
+RewriteCond %{REQUEST_URI} ^/api
+RewriteRule ^api/(.*)$ http://127.0.0.1:3000/api/$1 [P,L]
+
+# SPA routing - serve index.html for non-file requests
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.html [L]
+```
+
+**Note**: If proxy doesn't work, you may need to enable `mod_proxy`:
+```bash
+# Contact your hosting provider or if you have root access:
+sudo a2enmod proxy proxy_http
+sudo systemctl restart apache2
+```
+
+### Step 6: Enable SSL Certificate
+
+**Option A: Via VirtualMin UI**
+1. Go to **"Server Configuration"** > **"SSL Certificate"**
+2. Select **"Let's Encrypt"** tab
+3. Enter domain: `serverinv.yourdomain.com`
+4. Click **"Request Certificate"**
+5. Wait for installation (~1-2 minutes)
+
+**Option B: Via Command Line**
+```bash
+# Request Let's Encrypt certificate
+virtualmin generate-letsencrypt-cert --domain serverinv.yourdomain.com
+```
+
+**Option C: Via Certbot**
+```bash
+# If virtualmin command isn't available
+sudo certbot --apache -d serverinv.yourdomain.com
+```
+
+### Step 7: Configure Domain DNS
+
+Ensure your domain points to your server:
+
+1. Go to your domain registrar's DNS settings
+2. Add/update A record:
+   - **Host**: `serverinv` (or subdomain name)
+   - **Type**: A
+   - **Value**: Your server's IP address
+   - **TTL**: 3600 (1 hour) or default
+3. Wait for DNS propagation (5-30 minutes)
+
+### Step 8: Test Deployment
+
+1. Visit `https://serverinv.yourdomain.com`
+2. You should see the ServerInv login page
+3. Login with username `admin` and password `admin`
+4. **Immediately change the admin password!**
+5. Test functionality:
+   - Create a test server
+   - Edit it
+   - Delete it
+   - Test backup feature
+
+### Troubleshooting VirtualMin
+
+**Service won't start:**
+```bash
+# Check service status
+systemctl --user status serverinv
+
+# View error logs
+journalctl --user -u serverinv -n 50
+
+# Common issues:
+# - Port 3000 in use: Change PORT in .env
+# - Database connection: Verify DATABASE_URL
+# - Permissions: chmod -R 755 ~/serverinv
+```
+
+**502 Bad Gateway:**
+```bash
+# Verify backend is running
+curl http://localhost:3000/api/health
+# Should return: {"status":"ok"}
+
+# Check if proxy is configured
+cat ~/serverinv/client/dist/.htaccess
+```
+
+**SSL certificate fails:**
+```bash
+# Ensure domain points to server
+dig +short serverinv.yourdomain.com
+# Should return your server IP
+
+# Verify port 80 and 443 are open
+sudo netstat -tlnp | grep -E ':(80|443)'
+```
+
+**Application not accessible:**
+- Verify DNS points to correct server IP
+- Check firewall allows ports 80 and 443
+- Verify document root is correct: `~/serverinv/client/dist`
+- Check Apache is running: `sudo systemctl status apache2`
+
+### VirtualMin-Specific Management
+
+**Restart Application:**
+```bash
+systemctl --user restart serverinv
+```
+
+**View Logs:**
+```bash
+# Application logs
+journalctl --user -u serverinv -f
+
+# Apache error logs (via VirtualMin)
+# Go to "Logs and Reports" > "Apache Error Log"
+```
+
+**Update Application:**
+See the [Update Guide](./update-guide.md) for VirtualMin-specific update instructions.
+
+**Backup:**
+1. Use in-app backup feature (recommended)
+2. Or use VirtualMin's backup system:
+   - Go to **"Backup and Restore"**
+   - Create backup schedule
+   - Include home directory and databases
 
 ## LiteSpeed Configuration
 

@@ -21,9 +21,16 @@ This guide covers updating an existing ServerInv installation on both VPS/dedica
 Run the automated update script:
 
 ```bash
+# For default installation (username: serverinv)
 cd /opt/serverinv
 sudo bash deploy/update.sh
+
+# For custom installation (e.g., serverinv-prod)
+cd /opt/serverinv-prod
+sudo bash deploy/update.sh serverinv-prod
 ```
+
+**Note**: If you used a custom username during deployment, you must specify it when updating. The script will auto-detect available installations if not specified.
 
 The script will:
 1. Stop the ServerInv service
@@ -44,33 +51,49 @@ The script will:
 If you prefer to update manually:
 
 ```bash
-# Stop the service
-sudo systemctl stop serverinv
+# Replace 'serverinv' with your custom username if applicable
+APP_USER="serverinv"  # or serverinv-prod, serverinv-staging, etc.
+APP_DIR="/opt/${APP_USER}"
+SERVICE_NAME="serverinv-${APP_USER}"
 
-cd /opt/serverinv
+# Stop the service
+sudo systemctl stop ${SERVICE_NAME}
+
+cd ${APP_DIR}
 
 # Pull latest code (or upload new files)
-sudo -u serverinv git pull
+sudo -u ${APP_USER} git pull
 
 # If git pull fails with conflicts, stash local changes first:
-# sudo -u serverinv git stash
-# sudo -u serverinv git pull
-# sudo -u serverinv git stash pop  # (optional, to restore local changes)
+# sudo -u ${APP_USER} git stash
+# sudo -u ${APP_USER} git pull
+# sudo -u ${APP_USER} git stash pop  # (optional, to restore local changes)
 
 # Install any new dependencies
-sudo -u serverinv npm install
+sudo -u ${APP_USER} npm install
 
 # Rebuild frontend
-cd /opt/serverinv/client
-sudo -u serverinv npm run build
+cd ${APP_DIR}/client
+sudo -u ${APP_USER} npm run build
 
 # Run any new migrations (do NOT run drizzle-kit generate on server)
-cd /opt/serverinv/server
-sudo -u serverinv npx tsx src/db/migrate.ts
+cd ${APP_DIR}/server
+sudo -u ${APP_USER} npx tsx src/db/migrate.ts
 
 # Restart backend
-sudo systemctl start serverinv
-sudo systemctl status serverinv
+sudo systemctl start ${SERVICE_NAME}
+sudo systemctl status ${SERVICE_NAME}
+```
+
+**For default installation** (`serverinv`), the commands simplify to:
+```bash
+sudo systemctl stop serverinv-serverinv
+cd /opt/serverinv
+sudo -u serverinv git pull
+sudo -u serverinv npm install
+cd /opt/serverinv/client && sudo -u serverinv npm run build
+cd /opt/serverinv/server && sudo -u serverinv npx tsx src/db/migrate.ts
+sudo systemctl start serverinv-serverinv
 ```
 
 ---
@@ -113,8 +136,38 @@ npx tsx src/db/migrate.ts
 # Restart the application
 # Method depends on your hosting control panel:
 # - cPanel: Restart Node.js app in Application Manager
-# - DirectAdmin: Restart via Custom HTTPD Configuration or terminal
+# - DirectAdmin: systemctl --user restart serverinv
+# - VirtualMin: systemctl --user restart serverinv
 # - Passenger: touch tmp/restart.txt
+```
+
+### Control Panel-Specific Restart Instructions
+
+**cPanel:**
+1. Log into cPanel
+2. Go to "Setup Node.js App"
+3. Find `serverinv` application
+4. Click "Restart" or "Stop" then "Start"
+
+**DirectAdmin:**
+```bash
+# If using systemd user service (recommended)
+systemctl --user restart serverinv
+
+# Check status
+systemctl --user status serverinv
+```
+
+**VirtualMin GPL:**
+```bash
+# Restart via systemd user service
+systemctl --user restart serverinv
+
+# Verify it's running
+systemctl --user status serverinv
+
+# View recent logs
+journalctl --user -u serverinv -n 50
 ```
 
 ---
@@ -132,13 +185,26 @@ The update script will prompt you to create/update admin credentials.
 **Option 2: Standalone script (VPS only)**
 
 ```bash
+# For default installation
 sudo bash /opt/serverinv/deploy/reset-admin.sh
+
+# For custom installation
+sudo bash /opt/serverinv-prod/deploy/reset-admin.sh serverinv-prod
 ```
 
 **Option 3: Manual (all environments)**
 
 ```bash
-cd /opt/serverinv/server  # or ~/serverinv/server on shared hosting
+# VPS default installation
+cd /opt/serverinv/server
+npx tsx src/db/reset-admin.ts <username> <password>
+
+# VPS custom installation
+cd /opt/serverinv-prod/server
+npx tsx src/db/reset-admin.ts <username> <password>
+
+# Shared hosting
+cd ~/serverinv/server
 npx tsx src/db/reset-admin.ts <username> <password>
 ```
 
@@ -222,16 +288,32 @@ After updating, verify everything works:
 
 ### Checking Logs
 
-**VPS:**
+**VPS (default installation):**
 ```bash
-sudo journalctl -u serverinv -n 50 --no-pager
+sudo journalctl -u serverinv-serverinv -n 50 --no-pager
 ```
 
-**Shared hosting:**
+**VPS (custom installation):**
 ```bash
-# Check Node.js app logs in control panel
-# Or check error logs:
-tail -f ~/serverinv/server/logs/error.log  # if logging is configured
+# Replace 'serverinv-prod' with your installation username
+sudo journalctl -u serverinv-serverinv-prod -n 50 --no-pager
+```
+
+**Shared hosting (cPanel):**
+```bash
+# Check Node.js app logs in cPanel control panel:
+# - Go to "Setup Node.js App"
+# - Click on your app
+# - View error logs
+```
+
+**Shared hosting (DirectAdmin/VirtualMin):**
+```bash
+# View systemd user service logs
+journalctl --user -u serverinv -n 50
+
+# Follow logs in real-time
+journalctl --user -u serverinv -f
 ```
 
 ---
@@ -284,9 +366,16 @@ If git rollback isn't sufficient:
 
 ### Update script fails with permission errors
 
-**VPS:**
+**VPS (default installation):**
 ```bash
 sudo chown -R serverinv:serverinv /opt/serverinv
+```
+
+**VPS (custom installation):**
+```bash
+# Replace with your installation username
+APP_USER="serverinv-prod"
+sudo chown -R ${APP_USER}:${APP_USER} /opt/${APP_USER}
 ```
 
 **Shared hosting:**
@@ -354,11 +443,17 @@ If migrations fail, restore from backup and try manual migration.
 Check what went wrong:
 
 ```bash
-# VPS
-sudo journalctl -u serverinv -n 100 --no-pager
+# VPS (default installation)
+sudo journalctl -u serverinv-serverinv -n 100 --no-pager
 
-# Shared hosting
-# Check error logs in control panel
+# VPS (custom installation - replace with your username)
+sudo journalctl -u serverinv-serverinv-prod -n 100 --no-pager
+
+# Shared hosting (DirectAdmin/VirtualMin)
+journalctl --user -u serverinv -n 100
+
+# Shared hosting (cPanel)
+# Check error logs in control panel > Setup Node.js App
 ```
 
 Common issues:
