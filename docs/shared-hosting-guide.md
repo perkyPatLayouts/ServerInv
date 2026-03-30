@@ -231,9 +231,13 @@ Contact your hosting provider if SSH access is not enabled. You'll need SSH to r
 
 ```bash
 # 1. Upload ServerInv files to your hosting account
-# (via SFTP, control panel file manager, or git clone)
+# Recommended: Clone via git to enable future updates
+git clone https://github.com/yourusername/serverinv.git ~/serverinv
 
-# 2. Connect via SSH
+# Alternative: Upload via SFTP or control panel file manager
+# (if using SFTP/file manager, version will use fallback number)
+
+# 2. Connect via SSH (if not already)
 ssh username@yourdomain.com
 
 # 3. Navigate to the project directory
@@ -245,9 +249,15 @@ bash deploy/setup-shared.sh
 # 5. Follow the interactive prompts
 ```
 
+**Important**: Using `git clone` is recommended because:
+- Enables version tracking in the app
+- Allows easy updates via `git pull`
+- Preserves git history for troubleshooting
+
 The script will:
 - Detect your control panel (cPanel, DirectAdmin, or VirtualMin GPL)
 - Prompt for configuration (domain, database credentials)
+- Copy .git directory if present (for version tracking and updates)
 - Install dependencies
 - Build the application
 - Set up the database
@@ -1068,6 +1078,38 @@ This is normal on shared hosting. The pure Node.js backup method is slower than 
 - **Large database** (500MB-1GB): 5-15 minutes
 
 For databases >1GB, consider VPS hosting instead.
+
+### Vite Build Error: "fatal: not a git repository"
+
+**Error**: `git rev-list --count HEAD` fails during client build with "not a git repository"
+
+**Cause**: The .git directory wasn't copied or files were uploaded via SFTP instead of git clone.
+
+**Solution 1: Quick fix (uses fallback version)**
+The vite.config.ts now has a fallback that uses package.json version. Just rebuild:
+```bash
+cd ~/serverinv/client
+npm run build
+```
+
+**Solution 2: Enable git for updates and version tracking**
+```bash
+# If you have the original git repository
+cd ~/serverinv
+git init
+git remote add origin https://github.com/yourusername/serverinv.git
+git fetch origin
+git reset --hard origin/main
+
+# Or re-clone the repository
+cd ~
+rm -rf serverinv
+git clone https://github.com/yourusername/serverinv.git
+cd serverinv
+bash deploy/setup-shared.sh
+```
+
+**Prevention**: Always clone the repository via git rather than uploading files manually.
 
 ### TypeScript Build Errors (Missing @types packages)
 

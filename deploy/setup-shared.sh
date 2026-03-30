@@ -244,9 +244,20 @@ if [ ! -d "$PROJECT_ROOT/server" ] || [ ! -d "$PROJECT_ROOT/client" ]; then
   exit 1
 fi
 
+# Copy main directories
 cp -r "$PROJECT_ROOT/server" "$APP_DIR/"
 cp -r "$PROJECT_ROOT/client" "$APP_DIR/"
 cp -r "$PROJECT_ROOT/deploy" "$APP_DIR/"
+
+# Copy .git directory if it exists (for version detection and future updates)
+if [ -d "$PROJECT_ROOT/.git" ]; then
+  echo -e "${BLUE}Copying .git directory for version tracking...${NC}"
+  cp -r "$PROJECT_ROOT/.git" "$APP_DIR/"
+  echo -e "${GREEN}✓ Git repository copied (updates via 'git pull' enabled)${NC}"
+else
+  echo -e "${YELLOW}⚠ .git directory not found - version will use fallback${NC}"
+fi
+
 echo -e "${GREEN}✓ Files copied${NC}"
 
 # Generate secure JWT secret
