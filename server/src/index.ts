@@ -25,6 +25,10 @@ import { loginLimiter, passwordResetLimiter } from "./middleware/rateLimit.js";
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Trust proxy for shared hosting environments (Apache/Nginx reverse proxy)
+// This allows rate limiting to work correctly with X-Forwarded-For headers
+app.set('trust proxy', true);
+
 // Security: Helmet adds various HTTP security headers
 app.use(helmet());
 

@@ -238,9 +238,28 @@ echo -e "${BLUE}Copying application files...${NC}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
+echo "Debug: SCRIPT_DIR=$SCRIPT_DIR"
+echo "Debug: PROJECT_ROOT=$PROJECT_ROOT"
+echo "Debug: Checking for source files..."
+ls -la "$PROJECT_ROOT" 2>/dev/null || echo "Cannot list PROJECT_ROOT"
+
 if [ ! -d "$PROJECT_ROOT/server" ] || [ ! -d "$PROJECT_ROOT/client" ]; then
   echo -e "${RED}✗ Error: Source files not found${NC}"
-  echo "Please run this script from the project root directory."
+  echo ""
+  echo "Expected to find:"
+  echo "  - $PROJECT_ROOT/server"
+  echo "  - $PROJECT_ROOT/client"
+  echo ""
+  echo "This script must be run from a cloned ServerInv repository."
+  echo ""
+  echo "To install ServerInv on shared hosting:"
+  echo "  1. Clone the repository:"
+  echo "     cd ~"
+  echo "     git clone https://github.com/yourusername/ServerInv.git serverinv-source"
+  echo "  2. Run the setup script:"
+  echo "     cd serverinv-source"
+  echo "     bash deploy/setup-shared.sh"
+  echo ""
   exit 1
 fi
 
@@ -249,9 +268,26 @@ echo -e "${BLUE}Removing old installation files if present...${NC}"
 rm -rf "$APP_DIR/server" "$APP_DIR/client" "$APP_DIR/deploy" 2>/dev/null || true
 
 echo -e "${BLUE}Copying application files...${NC}"
-cp -r "$PROJECT_ROOT/server" "$APP_DIR/"
-cp -r "$PROJECT_ROOT/client" "$APP_DIR/"
-cp -r "$PROJECT_ROOT/deploy" "$APP_DIR/"
+if [ -d "$PROJECT_ROOT/server" ]; then
+  cp -r "$PROJECT_ROOT/server" "$APP_DIR/" || { echo -e "${RED}Failed to copy server directory${NC}"; exit 1; }
+else
+  echo -e "${RED}ERROR: $PROJECT_ROOT/server not found at copy time${NC}"
+  exit 1
+fi
+
+if [ -d "$PROJECT_ROOT/client" ]; then
+  cp -r "$PROJECT_ROOT/client" "$APP_DIR/" || { echo -e "${RED}Failed to copy client directory${NC}"; exit 1; }
+else
+  echo -e "${RED}ERROR: $PROJECT_ROOT/client not found at copy time${NC}"
+  exit 1
+fi
+
+if [ -d "$PROJECT_ROOT/deploy" ]; then
+  cp -r "$PROJECT_ROOT/deploy" "$APP_DIR/" || { echo -e "${RED}Failed to copy deploy directory${NC}"; exit 1; }
+else
+  echo -e "${RED}ERROR: $PROJECT_ROOT/deploy not found at copy time${NC}"
+  exit 1
+fi
 
 # Handle .git directory (for version detection and future updates)
 if [ -d "$PROJECT_ROOT/.git" ]; then

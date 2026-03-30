@@ -289,24 +289,36 @@ export class PgBackupService {
     try {
       // Parse SQL into statements
       const statements = this.parseSQL(sqlContent);
+      console.log(`[PgBackupService] Parsed ${statements.length} SQL statements from backup`);
 
       // Execute all statements in a transaction
       await client.query("BEGIN");
+      console.log("[PgBackupService] Started transaction");
 
+      let executedCount = 0;
       for (const statement of statements) {
         if (statement.trim()) {
           try {
             await client.query(statement);
+            executedCount++;
+            if (executedCount % 100 === 0) {
+              console.log(`[PgBackupService] Executed ${executedCount} statements...`);
+            }
           } catch (err: any) {
-            console.error("Failed to execute statement:", statement.substring(0, 100));
+            console.error("[PgBackupService] Failed to execute statement:");
+            console.error("Statement preview:", statement.substring(0, 200));
+            console.error("Error:", err.message);
             throw err;
           }
         }
       }
 
       await client.query("COMMIT");
-    } catch (err) {
+      console.log(`[PgBackupService] Successfully committed ${executedCount} statements`);
+    } catch (err: any) {
+      console.error("[PgBackupService] Restore failed, rolling back transaction");
       await client.query("ROLLBACK");
+      console.error("[PgBackupService] Rollback completed");
       throw err;
     } finally {
       client.release();
@@ -315,7 +327,7 @@ export class PgBackupService {
 
   /**
    * Parse SQL content into individual statements.
-   * Handles multi-line statements and comments.
+   * Handles multi-line statements, comments, and psql meta-commands.
    */
   private parseSQL(sql: string): string[] {
     const statements: string[] = [];
@@ -347,8 +359,19 @@ export class PgBackupService {
         continue;
       }
 
-      // Handle comments (only outside strings)
+      // Handle SQL comments (only outside strings)
       if (!inString && char === "-" && nextChar === "-") {
+        // Skip to end of line
+        while (i < sql.length && sql[i] !== "\n") {
+          i++;
+        }
+        continue;
+      }
+
+      // Handle psql meta-commands and backslash commands (only outside strings)
+      // These are lines starting with \ and are not valid SQL for our parser
+      // Examples: \restrict, \unrestrict, \dt, \c, etc.
+      if (!inString && char === "\\" && (i === 0 || sql[i - 1] === "\n" || sql[i - 1] === "\r")) {
         // Skip to end of line
         while (i < sql.length && sql[i] !== "\n") {
           i++;

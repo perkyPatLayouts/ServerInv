@@ -29,7 +29,8 @@ const ALLOWED_COMMANDS = new Set(["pg_dump", "psql", "mysqldump", "mysql", "dock
 function commandExists(cmd: string): boolean {
   if (!ALLOWED_COMMANDS.has(cmd)) return false;
   try {
-    const result = spawnSync("command", ["-v", cmd], { stdio: "pipe", shell: true });
+    // Use which command without shell to avoid deprecation warning
+    const result = spawnSync("which", [cmd], { stdio: "pipe" });
     return result.status === 0;
   } catch {
     return false;
@@ -192,6 +193,8 @@ router.post("/restore", requireAdmin, upload.single("backup"), async (req: Reque
   }
 
   const tmpFile = file.path;
+  console.log(`[Backup] Starting restore from file: ${file.originalname} (${file.size} bytes)`);
+
   try {
     const dbUrl = process.env.DATABASE_URL!;
 
@@ -205,6 +208,7 @@ router.post("/restore", requireAdmin, upload.single("backup"), async (req: Reque
 
         if (commandExists("psql")) {
           // Fast path: Use native psql with env-based password
+          console.log("[Backup] Using native psql command for restore");
           const result = spawnSync("psql", [
             "-h", db.host, "-p", db.port, "-U", db.user, db.database
           ], {
@@ -212,11 +216,22 @@ router.post("/restore", requireAdmin, upload.single("backup"), async (req: Reque
             env: { ...process.env, PGPASSWORD: db.password }
           });
           fs.closeSync(inFd);
+
+          // Log both stdout and stderr for debugging
+          if (result.stdout) {
+            console.log("[Backup] psql stdout:", result.stdout.toString());
+          }
+          if (result.stderr) {
+            console.log("[Backup] psql stderr:", result.stderr.toString());
+          }
+
           if (result.status !== 0) {
             throw new Error(`psql restore failed: ${result.stderr?.toString()}`);
           }
+          console.log("[Backup] Native psql restore completed successfully");
         } else {
           // Docker path
+          console.log("[Backup] Using docker psql for restore");
           const container = getDockerContainer();
           const result = spawnSync("docker", [
             "exec", "-i",
@@ -228,16 +243,27 @@ router.post("/restore", requireAdmin, upload.single("backup"), async (req: Reque
             env: { ...process.env }
           });
           fs.closeSync(inFd);
+
+          if (result.stdout) {
+            console.log("[Backup] docker psql stdout:", result.stdout.toString());
+          }
+          if (result.stderr) {
+            console.log("[Backup] docker psql stderr:", result.stderr.toString());
+          }
+
           if (result.status !== 0) {
             throw new Error(`docker psql restore failed: ${result.stderr?.toString()}`);
           }
+          console.log("[Backup] Docker psql restore completed successfully");
         }
       } else {
         // Pure Node.js restore (shared hosting environments)
-        console.log("Using pure Node.js PostgreSQL restore (psql not available)");
+        console.log("[Backup] Using pure Node.js PostgreSQL restore (psql not available)");
         const backupService = new PgBackupService(pool);
         const sql = fs.readFileSync(tmpFile, "utf8");
+        console.log(`[Backup] Read SQL file: ${sql.length} characters`);
         await backupService.restoreBackup(sql);
+        console.log("[Backup] Pure Node.js restore completed successfully");
       }
     } else {
       // MySQL restore

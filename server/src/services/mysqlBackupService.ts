@@ -175,7 +175,7 @@ export class MysqlBackupService {
 
   /**
    * Parse SQL content into individual statements.
-   * Handles multi-line statements and comments.
+   * Handles multi-line statements, comments, and mysql/psql meta-commands.
    */
   private parseSQL(sql: string): string[] {
     const statements: string[] = [];
@@ -206,8 +206,19 @@ export class MysqlBackupService {
         continue;
       }
 
-      // Handle comments (only outside strings)
+      // Handle SQL comments (only outside strings)
       if (!inString && char === "-" && nextChar === "-") {
+        // Skip to end of line
+        while (i < sql.length && sql[i] !== "\n") {
+          i++;
+        }
+        continue;
+      }
+
+      // Handle backslash commands (only outside strings)
+      // These are lines starting with \ and are not valid SQL for our parser
+      // Examples: \restrict, \unrestrict, \dt, \c, etc.
+      if (!inString && char === "\\" && (i === 0 || sql[i - 1] === "\n" || sql[i - 1] === "\r")) {
         // Skip to end of line
         while (i < sql.length && sql[i] !== "\n") {
           i++;
