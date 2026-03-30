@@ -198,12 +198,17 @@ pm2 restart serverinv
 # Verify it's running
 pm2 status serverinv
 
+# Sync client files to public_html (if using copy method)
+~/serverinv/scripts/sync-client.sh
+
 # View recent logs
 pm2 logs serverinv --lines 50 --nostream
 
 # Or use management script
 ~/serverinv/scripts/restart.sh
 ```
+
+**Note for VirtualMin:** If you copied client files to `~/public_html` during setup (instead of using symlink), you MUST run the sync script after rebuilding the client, or changes won't appear.
 
 ---
 

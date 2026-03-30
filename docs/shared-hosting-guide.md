@@ -565,15 +565,48 @@ pm2 restart serverinv
 
 ### Step 4: Set Document Root
 
-**Option A: Via VirtualMin UI**
-1. Go to **"Server Configuration"** > **"Website Options"**
-2. Set **"Document root"** to: `~/serverinv/client/dist`
-3. Click "Save"
+**Option A: Copy Files to public_html (Recommended)**
 
-**Option B: Via Symbolic Link**
+VirtualMin typically serves from `~/public_html`. Symbolic links may not work properly, so copy files instead:
+
 ```bash
-# Create symbolic link from public_html to dist
-ln -s ~/serverinv/client/dist ~/public_html/serverinv
+# Remove old public_html if exists
+rm -rf ~/public_html
+
+# Create fresh directory
+mkdir -p ~/public_html
+
+# Copy client files
+cp -r ~/serverinv/client/dist/* ~/public_html/
+
+# Verify files are present
+ls ~/public_html/
+# Should show: assets/  index.html
+
+# Create sync script for future updates
+cat > ~/serverinv/scripts/sync-client.sh << 'SYNCSCRIPT'
+#!/bin/bash
+echo "Syncing client files to public_html..."
+rsync -av --delete ~/serverinv/client/dist/ ~/public_html/
+echo "✓ Client files synced to public_html"
+SYNCSCRIPT
+
+chmod +x ~/serverinv/scripts/sync-client.sh
+```
+
+**Note:** After rebuilding the client, run `~/serverinv/scripts/sync-client.sh` to sync changes.
+
+**Option B: Via VirtualMin UI (Alternative)**
+1. Go to **"Server Configuration"** > **"Website Options"**
+2. Set **"Document root"** to: `/home/yourusername/serverinv/client/dist`
+3. Click "Save"
+4. Reload Apache configuration
+
+**Option C: Via Symbolic Link (May Not Work)**
+```bash
+# Try symbolic link (often doesn't work on VirtualMin)
+rm ~/public_html
+ln -s ~/serverinv/client/dist ~/public_html
 ```
 
 ### Step 5: Configure Reverse Proxy
@@ -1124,6 +1157,38 @@ Ensure:
 - `RewriteEngine On` is present
 - Proxy port matches backend PORT
 - mod_proxy is enabled (contact hosting support if not)
+
+### Blank Page or 404 Errors on Static Files
+
+**Symptom**: Browser shows blank page or 404 errors for JavaScript/CSS files.
+
+**Cause**: Document root not pointing to client build files or symlink not working.
+
+**Solution 1: Copy files to public_html**
+```bash
+# Copy built files to web root
+cp -r ~/serverinv/client/dist/* ~/public_html/
+
+# Verify files exist
+ls ~/public_html/index.html
+ls ~/public_html/assets/
+
+# After any client rebuild, re-sync:
+~/serverinv/scripts/sync-client.sh
+```
+
+**Solution 2: Fix document root in VirtualMin**
+- Go to **Server Configuration** > **Website Options**
+- Change **Document root** to: `/home/yourusername/serverinv/client/dist`
+- Save and reload Apache
+
+**Solution 3: Verify .htaccess exists**
+```bash
+# Check .htaccess is in the web root
+cat ~/public_html/.htaccess
+
+# Should contain RewriteRule for /api proxy
+```
 
 ### Backup/Restore Slow
 
