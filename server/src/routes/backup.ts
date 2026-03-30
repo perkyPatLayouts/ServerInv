@@ -204,11 +204,29 @@ router.post("/restore", requireAdmin, upload.single("backup"), async (req: Reque
 
       if (usePsql) {
         const db = parseDbUrl(dbUrl);
-        const inFd = fs.openSync(tmpFile, "r");
 
         if (commandExists("psql")) {
           // Fast path: Use native psql with env-based password
           console.log("[Backup] Using native psql command for restore");
+
+          // First, drop and recreate schema for clean restore
+          console.log("[Backup] Dropping existing schema for clean restore...");
+          const cleanResult = spawnSync("psql", [
+            "-h", db.host, "-p", db.port, "-U", db.user, db.database,
+            "-c", "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO current_user; GRANT ALL ON SCHEMA public TO public;"
+          ], {
+            stdio: "pipe",
+            env: { ...process.env, PGPASSWORD: db.password }
+          });
+
+          if (cleanResult.status !== 0) {
+            console.error("[Backup] Failed to clean database:", cleanResult.stderr?.toString());
+            throw new Error(`Failed to clean database: ${cleanResult.stderr?.toString()}`);
+          }
+          console.log("[Backup] Schema recreated successfully");
+
+          // Now restore the backup
+          const inFd = fs.openSync(tmpFile, "r");
           const result = spawnSync("psql", [
             "-h", db.host, "-p", db.port, "-U", db.user, db.database
           ], {
@@ -233,6 +251,28 @@ router.post("/restore", requireAdmin, upload.single("backup"), async (req: Reque
           // Docker path
           console.log("[Backup] Using docker psql for restore");
           const container = getDockerContainer();
+
+          // First, drop and recreate schema for clean restore
+          console.log("[Backup] Dropping existing schema for clean restore...");
+          const cleanResult = spawnSync("docker", [
+            "exec", "-i",
+            "-e", `PGPASSWORD=${db.password}`,
+            container,
+            "psql", "-U", db.user, "-h", "localhost", db.database,
+            "-c", "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO current_user; GRANT ALL ON SCHEMA public TO public;"
+          ], {
+            stdio: "pipe",
+            env: { ...process.env }
+          });
+
+          if (cleanResult.status !== 0) {
+            console.error("[Backup] Failed to clean database:", cleanResult.stderr?.toString());
+            throw new Error(`Failed to clean database: ${cleanResult.stderr?.toString()}`);
+          }
+          console.log("[Backup] Schema recreated successfully");
+
+          // Now restore the backup
+          const inFd = fs.openSync(tmpFile, "r");
           const result = spawnSync("docker", [
             "exec", "-i",
             "-e", `PGPASSWORD=${db.password}`,
@@ -271,9 +311,44 @@ router.post("/restore", requireAdmin, upload.single("backup"), async (req: Reque
 
       if (useMysql) {
         const db = parseDbUrl(dbUrl);
-        const inFd = fs.openSync(tmpFile, "r");
 
-        // Fast path: Use native mysql client with env-based password
+        console.log("[Backup] Using native mysql command for restore");
+
+        // First, drop all existing tables for clean restore
+        console.log("[Backup] Dropping existing tables for clean restore...");
+        const getTables = spawnSync("mysql", [
+          "-h", db.host, "-P", db.port, "-u", db.user, db.database,
+          "-N", "-e", "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()"
+        ], {
+          stdio: "pipe",
+          env: { ...process.env, MYSQL_PWD: db.password }
+        });
+
+        if (getTables.status === 0 && getTables.stdout) {
+          const tables = getTables.stdout.toString().trim().split('\n').filter(t => t);
+          if (tables.length > 0) {
+            const dropStatements = "SET FOREIGN_KEY_CHECKS=0; " +
+              tables.map(t => `DROP TABLE IF EXISTS \`${t}\`;`).join(' ') +
+              " SET FOREIGN_KEY_CHECKS=1;";
+
+            const dropResult = spawnSync("mysql", [
+              "-h", db.host, "-P", db.port, "-u", db.user, db.database,
+              "-e", dropStatements
+            ], {
+              stdio: "pipe",
+              env: { ...process.env, MYSQL_PWD: db.password }
+            });
+
+            if (dropResult.status !== 0) {
+              console.error("[Backup] Failed to drop tables:", dropResult.stderr?.toString());
+              throw new Error(`Failed to clean database: ${dropResult.stderr?.toString()}`);
+            }
+            console.log(`[Backup] Dropped ${tables.length} existing tables`);
+          }
+        }
+
+        // Now restore the backup
+        const inFd = fs.openSync(tmpFile, "r");
         const result = spawnSync("mysql", [
           "-h", db.host, "-P", db.port, "-u", db.user, db.database
         ], {
@@ -281,15 +356,26 @@ router.post("/restore", requireAdmin, upload.single("backup"), async (req: Reque
           env: { ...process.env, MYSQL_PWD: db.password }
         });
         fs.closeSync(inFd);
+
+        if (result.stdout) {
+          console.log("[Backup] mysql stdout:", result.stdout.toString());
+        }
+        if (result.stderr) {
+          console.log("[Backup] mysql stderr:", result.stderr.toString());
+        }
+
         if (result.status !== 0) {
           throw new Error(`mysql restore failed: ${result.stderr?.toString()}`);
         }
+        console.log("[Backup] Native mysql restore completed successfully");
       } else {
         // Pure Node.js restore (shared hosting environments)
-        console.log("Using pure Node.js MySQL restore (mysql not available)");
+        console.log("[Backup] Using pure Node.js MySQL restore (mysql not available)");
         const backupService = new MysqlBackupService(pool);
         const sql = fs.readFileSync(tmpFile, "utf8");
+        console.log(`[Backup] Read SQL file: ${sql.length} characters`);
         await backupService.restoreBackup(sql);
+        console.log("[Backup] Pure Node.js restore completed successfully");
       }
     }
 

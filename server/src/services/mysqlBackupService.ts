@@ -154,20 +154,46 @@ export class MysqlBackupService {
     const conn = await this.pool.getConnection();
 
     try {
+      // First, drop all existing tables for clean restore
+      console.log("[MysqlBackupService] Dropping existing tables for clean restore...");
+      await conn.query("SET FOREIGN_KEY_CHECKS=0");
+
+      const [tables]: any = await conn.query(
+        "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()"
+      );
+
+      for (const { table_name } of tables) {
+        console.log(`[MysqlBackupService] Dropping table: ${table_name}`);
+        await conn.query(`DROP TABLE IF EXISTS \`${table_name}\``);
+      }
+
+      await conn.query("SET FOREIGN_KEY_CHECKS=1");
+      console.log(`[MysqlBackupService] Dropped ${tables.length} existing tables`);
+
       // Parse SQL into statements
       const statements = this.parseSQL(sqlContent);
+      console.log(`[MysqlBackupService] Parsed ${statements.length} SQL statements from backup`);
 
       // Execute all statements
+      let executedCount = 0;
       for (const statement of statements) {
         if (statement.trim() && !statement.startsWith('--')) {
           try {
             await conn.query(statement);
+            executedCount++;
+            if (executedCount % 100 === 0) {
+              console.log(`[MysqlBackupService] Executed ${executedCount} statements...`);
+            }
           } catch (err: any) {
-            console.error("Failed to execute statement:", statement.substring(0, 100));
+            console.error("[MysqlBackupService] Failed to execute statement:");
+            console.error("Statement preview:", statement.substring(0, 200));
+            console.error("Error:", err.message);
             throw err;
           }
         }
       }
+
+      console.log(`[MysqlBackupService] Successfully executed ${executedCount} statements`);
     } finally {
       conn.release();
     }

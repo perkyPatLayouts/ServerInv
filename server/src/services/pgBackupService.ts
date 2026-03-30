@@ -287,6 +287,14 @@ export class PgBackupService {
   async restoreBackup(sqlContent: string): Promise<void> {
     const client = await this.pool.connect();
     try {
+      // First, drop and recreate the public schema to ensure a clean restore
+      console.log("[PgBackupService] Dropping existing schema for clean restore...");
+      await client.query("DROP SCHEMA IF EXISTS public CASCADE");
+      await client.query("CREATE SCHEMA public");
+      await client.query("GRANT ALL ON SCHEMA public TO current_user");
+      await client.query("GRANT ALL ON SCHEMA public TO public");
+      console.log("[PgBackupService] Schema recreated successfully");
+
       // Parse SQL into statements
       const statements = this.parseSQL(sqlContent);
       console.log(`[PgBackupService] Parsed ${statements.length} SQL statements from backup`);
