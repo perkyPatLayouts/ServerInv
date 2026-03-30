@@ -100,6 +100,26 @@ sudo systemctl start serverinv-serverinv
 
 ## Shared Hosting Updates
 
+### Quick Reference: VirtualMin Rebuild
+
+**Most common update scenario (server code only):**
+```bash
+cd ~/serverinv
+git pull
+cd server
+npm run build
+pm2 restart serverinv
+```
+
+**Check logs:**
+```bash
+pm2 logs serverinv --lines 50
+```
+
+For detailed instructions, see [VirtualMin-specific section](#control-panel-specific-restart-instructions) below.
+
+---
+
 ### Prerequisites
 
 Before updating, ensure your environment is ready:
@@ -191,20 +211,45 @@ systemctl --user status serverinv
 ```
 
 **VirtualMin GPL:**
+
+*Quick rebuild (most common):*
 ```bash
-# Restart via PM2 (default for VirtualMin)
+cd ~/serverinv
+git pull
+cd server
+npm run build
 pm2 restart serverinv
+```
 
-# Verify it's running
-pm2 status serverinv
+*Full rebuild with client updates:*
+```bash
+cd ~/serverinv
+git pull
 
-# Sync client files to public_html (if using copy method)
+# Install dependencies (if package.json changed)
+npm install
+
+# Rebuild server
+cd server
+npm run build
+
+# Rebuild client (if frontend changed)
+cd ../client
+npm run build
+
+# Sync to public_html (if using copy method instead of symlink)
 ~/serverinv/scripts/sync-client.sh
 
-# View recent logs
-pm2 logs serverinv --lines 50 --nostream
+# Restart application
+pm2 restart serverinv
 
-# Or use management script
+# Verify and check logs
+pm2 status serverinv
+pm2 logs serverinv --lines 50 --nostream
+```
+
+*Alternative management script:*
+```bash
 ~/serverinv/scripts/restart.sh
 ```
 

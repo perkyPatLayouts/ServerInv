@@ -1329,7 +1329,22 @@ Consider VPS if:
 
 **📋 For detailed update instructions, see the [Update Guide](./update-guide.md).**
 
-Quick manual update for shared hosting:
+#### VirtualMin Quick Rebuild (Most Common)
+
+```bash
+cd ~/serverinv
+git pull
+cd server
+npm run build
+pm2 restart serverinv
+```
+
+Check logs after restart:
+```bash
+pm2 logs serverinv --lines 50
+```
+
+#### Manual Update for All Shared Hosting
 
 ```bash
 cd ~/serverinv
@@ -1338,12 +1353,14 @@ cd ~/serverinv
 # Then pull new code
 git pull origin main
 
-# Install dependencies
+# Install dependencies (if package.json changed)
 npm install
 
-# Rebuild
-cd client && npm run build
-cd ../server && npm run build
+# Rebuild server
+cd server && npm run build
+
+# Rebuild client (if frontend changed)
+cd ../client && npm run build
 
 # Run migrations
 cd ../server && npx tsx src/db/migrate.ts
