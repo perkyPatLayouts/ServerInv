@@ -536,23 +536,20 @@ Follow the prompts:
 
 ### Step 2: Start Node.js Application
 
-VirtualMin uses systemd user services for Node.js applications:
+VirtualMin uses **PM2 process manager** for Node.js applications (systemd user services are typically not available on shared hosting):
 
 ```bash
-# Check if service was created
-systemctl --user status serverinv
-
-# Start the service (if not already running)
-systemctl --user start serverinv
-
-# Enable auto-start on boot
-systemctl --user enable serverinv
+# Check application status
+pm2 status serverinv
 
 # View logs
-journalctl --user -u serverinv -f
+pm2 logs serverinv
+
+# Restart if needed
+pm2 restart serverinv
 ```
 
-**Note**: The deployment script automatically creates and starts the systemd service.
+**Note**: The deployment script automatically installs PM2, starts the application, and configures auto-start on reboot.
 
 ### Step 3: Configure Virtual Server
 
@@ -715,34 +712,64 @@ journalctl --user -u serverinv -n 50
 # - Node.js not in PATH: Add nvm to systemd service (see below)
 ```
 
-**Systemd service can't find Node.js:**
-
-The systemd user service needs to know where Node.js is located. Update the service file:
-
+**PM2 command not found:**
 ```bash
-# Find Node.js path
-which node
-# Example output: /home/username/.nvm/versions/node/v20.11.0/bin/node
+# Install PM2 globally
+npm install -g pm2
 
-# Edit service file
-nano ~/.config/systemd/user/serverinv.service
+# Verify installation
+which pm2
+pm2 --version
+
+# If still not found, check npm global path
+npm config get prefix
+# Add to PATH if needed
+export PATH="$(npm config get prefix)/bin:$PATH"
+echo 'export PATH="$(npm config get prefix)/bin:$PATH"' >> ~/.bashrc
 ```
 
-Update the `ExecStart` line to use the full path:
-```ini
-[Service]
-Type=simple
-WorkingDirectory=/home/username/serverinv/server
-ExecStart=/home/username/.nvm/versions/node/v20.11.0/bin/node dist/index.js
-Environment=NODE_ENV=production
-Environment=PATH=/home/username/.nvm/versions/node/v20.11.0/bin:/usr/bin:/bin
+**PM2 app not starting:**
+```bash
+# Check PM2 logs for errors
+pm2 logs serverinv --err
+
+# Try starting with full path
+cd ~/serverinv/server
+pm2 delete serverinv
+pm2 start dist/index.js --name serverinv --env production
+
+# Check if port 3000 is already in use
+netstat -tlnp | grep 3000
+# Or: ss -tlnp | grep 3000
 ```
 
-Then reload and restart:
+**PM2 app not restarting after reboot:**
 ```bash
-systemctl --user daemon-reload
-systemctl --user restart serverinv
-systemctl --user status serverinv
+# Check crontab for PM2 resurrect
+crontab -l | grep pm2
+
+# If missing, add it
+PM2_PATH=$(which pm2)
+(crontab -l 2>/dev/null; echo "@reboot sleep 30 && $PM2_PATH resurrect") | crontab -
+
+# Save current PM2 process list
+pm2 save
+
+# Test by simulating reboot
+pm2 kill
+pm2 resurrect
+```
+
+**PM2 using wrong Node.js version:**
+```bash
+# Check Node.js version PM2 is using
+pm2 show serverinv | grep "exec mode"
+
+# Update PM2 to use correct Node.js
+pm2 delete serverinv
+which node  # Get full path
+pm2 start dist/index.js --name serverinv --interpreter $(which node) --env production
+pm2 save
 ```
 
 **502 Bad Gateway:**
@@ -773,22 +800,51 @@ sudo netstat -tlnp | grep -E ':(80|443)'
 
 ### VirtualMin-Specific Management
 
-**Restart Application:**
+**Manage Application with PM2:**
 ```bash
-systemctl --user restart serverinv
+# Check status
+pm2 status serverinv
+
+# View real-time logs
+pm2 logs serverinv
+
+# Restart application
+pm2 restart serverinv
+
+# Stop application
+pm2 stop serverinv
+
+# Start application
+pm2 start serverinv
+
+# View detailed info
+pm2 show serverinv
+
+# Monitor resources
+pm2 monit
 ```
 
-**View Logs:**
+**Use Management Scripts:**
 ```bash
-# Application logs
-journalctl --user -u serverinv -f
+# Convenient wrapper scripts created during deployment
+~/serverinv/scripts/status.sh    # Check status and recent logs
+~/serverinv/scripts/restart.sh   # Restart application
+~/serverinv/scripts/logs.sh      # View live logs
+~/serverinv/scripts/stop.sh      # Stop application
+~/serverinv/scripts/start.sh     # Start application
+```
 
-# Apache error logs (via VirtualMin)
+**View Apache/Web Server Logs:**
+```bash
+# Via VirtualMin interface
 # Go to "Logs and Reports" > "Apache Error Log"
+
+# Or via command line
+tail -f ~/logs/error_log
 ```
 
 **Update Application:**
-See the [Update Guide](./update-guide.md) for VirtualMin-specific update instructions.
+See the [Update Guide](./update-guide.md) for VirtualMin-specific update instructions with PM2.
 
 **Backup:**
 1. Use in-app backup feature (recommended)

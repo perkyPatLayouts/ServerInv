@@ -192,14 +192,17 @@ systemctl --user status serverinv
 
 **VirtualMin GPL:**
 ```bash
-# Restart via systemd user service
-systemctl --user restart serverinv
+# Restart via PM2 (default for VirtualMin)
+pm2 restart serverinv
 
 # Verify it's running
-systemctl --user status serverinv
+pm2 status serverinv
 
 # View recent logs
-journalctl --user -u serverinv -n 50
+pm2 logs serverinv --lines 50 --nostream
+
+# Or use management script
+~/serverinv/scripts/restart.sh
 ```
 
 ---
@@ -339,13 +342,29 @@ sudo journalctl -u serverinv-serverinv-prod -n 50 --no-pager
 # - View error logs
 ```
 
-**Shared hosting (DirectAdmin/VirtualMin):**
+**Shared hosting (DirectAdmin with systemd):**
 ```bash
 # View systemd user service logs
 journalctl --user -u serverinv -n 50
 
 # Follow logs in real-time
 journalctl --user -u serverinv -f
+```
+
+**Shared hosting (VirtualMin with PM2):**
+```bash
+# View PM2 logs
+pm2 logs serverinv --lines 50
+
+# Follow logs in real-time
+pm2 logs serverinv
+
+# View only error logs
+pm2 logs serverinv --err
+
+# View log files directly
+tail -f ~/.pm2/logs/serverinv-out.log
+tail -f ~/.pm2/logs/serverinv-error.log
 ```
 
 ---
@@ -505,6 +524,46 @@ npm run build
 ```
 
 Then hard refresh browser (Ctrl+Shift+R or Cmd+Shift+R).
+
+### VirtualMin/PM2: Application won't start after update
+
+**Error: PM2 shows app as "errored" or constantly restarting:**
+
+```bash
+# Check detailed error logs
+pm2 logs serverinv --err --lines 100
+
+# Delete and recreate the PM2 process
+pm2 delete serverinv
+cd ~/serverinv/server
+pm2 start dist/index.js --name serverinv --env production
+
+# Save PM2 configuration
+pm2 save
+
+# Check status
+pm2 status serverinv
+```
+
+**Error: Port 3000 already in use:**
+
+```bash
+# Find what's using port 3000
+netstat -tlnp | grep 3000
+
+# Or with ss
+ss -tlnp | grep 3000
+
+# Kill old PM2 process if needed
+pm2 delete serverinv
+
+# Or change port in .env
+nano ~/serverinv/server/.env
+# Change PORT=3000 to PORT=3001 (or another available port)
+
+# Restart
+pm2 start dist/index.js --name serverinv --env production
+```
 
 ### VirtualMin: tsx or TypeScript errors during update
 

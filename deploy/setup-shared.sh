@@ -641,45 +641,88 @@ SERVICE
   echo ""
 
 elif [ "$PANEL" == "virtualmin" ]; then
-  echo -e "${BLUE}Registering with VirtualMin GPL...${NC}"
+  echo -e "${BLUE}Setting up VirtualMin GPL deployment...${NC}"
 
-  # VirtualMin typically runs apps via systemd --user or custom scripts
-  echo -e "${BLUE}Setting up systemd user service...${NC}"
-  mkdir -p ~/.config/systemd/user
-  cat > ~/.config/systemd/user/serverinv.service << 'SERVICE'
-[Unit]
-Description=ServerInv Backend
-After=network.target
+  # VirtualMin shared hosting typically doesn't support systemd user services
+  # Use PM2 process manager instead
+  echo -e "${BLUE}Installing PM2 process manager...${NC}"
 
-[Service]
-Type=simple
-WorkingDirectory=$APP_DIR/server
-ExecStart=/usr/bin/node dist/index.js
-Restart=always
-RestartSec=10
-Environment=NODE_ENV=production
-
-[Install]
-WantedBy=default.target
-SERVICE
-
-  # Replace $APP_DIR placeholder
-  sed -i "s|\$APP_DIR|$APP_DIR|g" ~/.config/systemd/user/serverinv.service
-
-  if systemctl --user daemon-reload && \
-     systemctl --user enable serverinv && \
-     systemctl --user start serverinv; then
-    echo -e "${GREEN}✓ Application registered as systemd user service${NC}"
+  if ! command -v pm2 &> /dev/null; then
+    npm install -g pm2
+    echo -e "${GREEN}✓ PM2 installed${NC}"
   else
-    echo -e "${YELLOW}⚠ Could not start systemd service${NC}"
-    echo "You may need to start the app manually:"
-    echo "  cd $APP_DIR/server && node dist/index.js &"
+    echo -e "${GREEN}✓ PM2 already installed${NC}"
+  fi
+
+  # Start application with PM2
+  echo -e "${BLUE}Starting application with PM2...${NC}"
+  cd "$APP_DIR/server"
+  pm2 delete serverinv 2>/dev/null || true  # Remove if exists
+  pm2 start dist/index.js --name serverinv --env production
+  pm2 save
+
+  echo -e "${GREEN}✓ Application started with PM2${NC}"
+
+  # Create management scripts
+  echo -e "${BLUE}Creating management scripts...${NC}"
+  mkdir -p "$APP_DIR/scripts"
+
+  cat > "$APP_DIR/scripts/start.sh" << 'STARTSCRIPT'
+#!/bin/bash
+cd ~/serverinv/server
+pm2 start dist/index.js --name serverinv --env production 2>/dev/null || pm2 restart serverinv
+echo "ServerInv started"
+pm2 status serverinv
+STARTSCRIPT
+
+  cat > "$APP_DIR/scripts/stop.sh" << 'STOPSCRIPT'
+#!/bin/bash
+pm2 stop serverinv
+echo "ServerInv stopped"
+STOPSCRIPT
+
+  cat > "$APP_DIR/scripts/restart.sh" << 'RESTARTSCRIPT'
+#!/bin/bash
+pm2 restart serverinv
+echo "ServerInv restarted"
+pm2 status serverinv
+RESTARTSCRIPT
+
+  cat > "$APP_DIR/scripts/status.sh" << 'STATUSSCRIPT'
+#!/bin/bash
+pm2 status serverinv
+pm2 logs serverinv --lines 20 --nostream
+STATUSSCRIPT
+
+  cat > "$APP_DIR/scripts/logs.sh" << 'LOGSSCRIPT'
+#!/bin/bash
+pm2 logs serverinv
+LOGSSCRIPT
+
+  chmod +x "$APP_DIR/scripts"/*.sh
+  echo -e "${GREEN}✓ Management scripts created in $APP_DIR/scripts/${NC}"
+
+  # Setup auto-start on reboot via crontab
+  echo -e "${BLUE}Setting up auto-start on reboot...${NC}"
+
+  # Check if crontab entry already exists
+  if ! crontab -l 2>/dev/null | grep -q "pm2 resurrect"; then
+    # Get PM2 path
+    PM2_PATH=$(which pm2)
+
+    # Add to crontab
+    (crontab -l 2>/dev/null; echo "@reboot sleep 30 && $PM2_PATH resurrect") | crontab -
+    echo -e "${GREEN}✓ Auto-start configured via crontab${NC}"
+  else
+    echo -e "${GREEN}✓ Auto-start already configured${NC}"
   fi
 
   echo ""
   echo -e "${YELLOW}=========================================="
   echo "  NEXT STEPS - VirtualMin Configuration"
   echo "==========================================${NC}"
+  echo ""
+  echo "✓ Application is running via PM2 process manager"
   echo ""
   echo "1. ${BLUE}Setup Virtual Server:${NC}"
   echo "   • Log into VirtualMin"
@@ -715,11 +758,17 @@ SERVICE
   echo "   • Enable 'Let's Encrypt' certificate for: $DOMAIN"
   echo "   • Or use command line: virtualmin generate-letsencrypt-cert --domain $DOMAIN"
   echo ""
-  echo "5. ${BLUE}Start Application on Boot:${NC}"
-  echo "   • Ensure systemd user service is enabled:"
-  echo "     systemctl --user status serverinv"
-  echo "   • To start manually:"
-  echo "     systemctl --user start serverinv"
+  echo "5. ${BLUE}Manage Application:${NC}"
+  echo "   • View status:  ${GREEN}pm2 status serverinv${NC}"
+  echo "   • View logs:    ${GREEN}pm2 logs serverinv${NC}"
+  echo "   • Restart:      ${GREEN}pm2 restart serverinv${NC}"
+  echo "   • Stop:         ${GREEN}pm2 stop serverinv${NC}"
+  echo "   • Start:        ${GREEN}pm2 start serverinv${NC}"
+  echo ""
+  echo "   Or use management scripts:"
+  echo "   • ${GREEN}$APP_DIR/scripts/status.sh${NC}"
+  echo "   • ${GREEN}$APP_DIR/scripts/restart.sh${NC}"
+  echo "   • ${GREEN}$APP_DIR/scripts/logs.sh${NC}"
   echo ""
   echo "6. ${BLUE}Test the deployment:${NC}"
   echo "   • Visit: ${GREEN}https://$DOMAIN${NC}"
