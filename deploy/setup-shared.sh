@@ -397,14 +397,48 @@ echo -e "${GREEN}✓ Client built${NC}"
 echo -e "${BLUE}Running database migrations...${NC}"
 cd "$APP_DIR/server"
 
-# Test database connection first
-if ! node -e "const pg = require('pg'); const pool = new pg.Pool({connectionString: process.env.DATABASE_URL}); pool.query('SELECT 1').then(() => {console.log('OK'); pool.end();}).catch(err => {console.error(err.message); process.exit(1);});" &> /dev/null; then
-  echo -e "${RED}✗ Error: Cannot connect to PostgreSQL database${NC}"
+# Test database connection first (detect database type from URL)
+echo -e "${BLUE}Testing database connection...${NC}"
+
+DB_TEST_RESULT=0
+if [[ "$DATABASE_URL" == postgres://* ]] || [[ "$DATABASE_URL" == postgresql://* ]]; then
+  # PostgreSQL connection test
+  if node -e "const pg = require('pg'); const pool = new pg.Pool({connectionString: process.env.DATABASE_URL}); pool.query('SELECT 1').then(() => {console.log('OK'); pool.end();}).catch(err => {console.error(err.message); process.exit(1);});" &> /dev/null; then
+    echo -e "${GREEN}✓ PostgreSQL connection successful${NC}"
+  else
+    echo -e "${RED}✗ Error: Cannot connect to PostgreSQL database${NC}"
+    DB_TEST_RESULT=1
+  fi
+elif [[ "$DATABASE_URL" == mysql://* ]]; then
+  # MySQL connection test
+  if node -e "const mysql = require('mysql2/promise'); mysql.createConnection(process.env.DATABASE_URL).then(conn => {console.log('OK'); conn.end();}).catch(err => {console.error(err.message); process.exit(1);});" &> /dev/null; then
+    echo -e "${GREEN}✓ MySQL connection successful${NC}"
+  else
+    echo -e "${RED}✗ Error: Cannot connect to MySQL database${NC}"
+    DB_TEST_RESULT=1
+  fi
+else
+  echo -e "${RED}✗ Error: Unknown database URL format${NC}"
+  DB_TEST_RESULT=1
+fi
+
+if [ $DB_TEST_RESULT -ne 0 ]; then
   echo ""
   echo "Please verify:"
   echo "  1. Database '$DB_NAME' exists"
   echo "  2. User '$DB_USER' has access to the database"
-  echo "  3. PostgreSQL is running on $DB_HOST:$DB_PORT"
+  echo "  3. Database is running on $DB_HOST:$DB_PORT"
+  echo "  4. Credentials in .env are correct"
+  echo ""
+  echo "To create the database manually:"
+  if [[ "$DATABASE_URL" == postgres://* ]] || [[ "$DATABASE_URL" == postgresql://* ]]; then
+    echo "  sudo -u postgres createdb -O $DB_USER $DB_NAME"
+  else
+    echo "  mysql -u root -p -e \"CREATE DATABASE $DB_NAME; GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'localhost'; FLUSH PRIVILEGES;\""
+  fi
+  echo ""
+  echo "Or create via VirtualMin web interface:"
+  echo "  Edit Databases > MySQL or PostgreSQL > Create new database"
   exit 1
 fi
 
