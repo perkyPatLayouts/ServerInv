@@ -100,6 +100,38 @@ sudo systemctl start serverinv-serverinv
 
 ## Shared Hosting Updates
 
+### Prerequisites
+
+Before updating, ensure your environment is ready:
+
+**All Control Panels:**
+```bash
+# Verify Node.js version (must be 20+)
+node --version
+
+# Verify npm
+npm --version
+```
+
+**DirectAdmin/VirtualMin (using systemd services):**
+```bash
+# Also verify tsx is installed (required for migrations)
+tsx --version
+
+# If tsx is missing:
+npm install -g tsx
+```
+
+**VirtualMin-specific: Ensure nvm is loaded**
+```bash
+# Load nvm if commands not found
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+# Set Node.js version
+nvm use 20
+```
+
 ### Quick Update
 
 SSH into your shared hosting account and run:
@@ -473,6 +505,77 @@ npm run build
 ```
 
 Then hard refresh browser (Ctrl+Shift+R or Cmd+Shift+R).
+
+### VirtualMin: tsx or TypeScript errors during update
+
+**Error: `tsx: command not found` when running migrations:**
+
+```bash
+# Install tsx globally
+npm install -g tsx
+
+# If permission denied, configure npm prefix
+mkdir -p ~/.npm-global
+npm config set prefix '~/.npm-global'
+echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.bashrc
+source ~/.bashrc
+
+# Install again
+npm install -g tsx
+
+# Verify
+which tsx
+tsx --version
+
+# Run migrations again
+cd ~/serverinv/server
+npx tsx src/db/migrate.ts
+```
+
+**Error: Node.js version mismatch:**
+
+```bash
+# Check current version
+node --version
+
+# If version is < 20, update via nvm
+nvm install 20
+nvm use 20
+nvm alias default 20
+
+# Verify
+node --version  # Should show v20.x.x
+
+# Continue with update
+```
+
+**Error: `Cannot find module` during update:**
+
+```bash
+# Clean install dependencies
+cd ~/serverinv
+rm -rf node_modules package-lock.json
+npm install
+
+cd server
+rm -rf node_modules package-lock.json
+npm install
+
+cd ../client
+rm -rf node_modules package-lock.json
+npm install
+
+# Rebuild
+cd ~/serverinv/client
+npm run build
+
+# Run migrations
+cd ~/serverinv/server
+npx tsx src/db/migrate.ts
+
+# Restart service
+systemctl --user restart serverinv
+```
 
 ---
 

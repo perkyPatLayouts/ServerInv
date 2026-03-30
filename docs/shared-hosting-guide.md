@@ -116,15 +116,112 @@ Choose MySQL/MariaDB (most common) or PostgreSQL (if available):
 3. Enable for your account
 
 **VirtualMin GPL:**
-1. SSH into your account
-2. Install Node.js 20+ via nvm (if not already available):
+
+VirtualMin typically requires manual Node.js setup. Follow these steps:
+
+1. **SSH into your account:**
    ```bash
-   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
-   source ~/.bashrc
-   nvm install 20
-   nvm use 20
+   ssh username@yourdomain.com
    ```
-3. Or ask your hosting provider to install Node.js 20+ system-wide
+
+2. **Install NVM (Node Version Manager):**
+   ```bash
+   # Download and install nvm
+   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+
+   # Load nvm into current session
+   export NVM_DIR="$HOME/.nvm"
+   [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+   # Add to shell profile for persistence
+   echo 'export NVM_DIR="$HOME/.nvm"' >> ~/.bashrc
+   echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> ~/.bashrc
+   echo '[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"' >> ~/.bashrc
+   ```
+
+3. **Install Node.js 20+ and npm:**
+   ```bash
+   # Install Node.js 20 (LTS) - npm is included
+   nvm install 20
+
+   # Set as default version
+   nvm alias default 20
+
+   # Use Node.js 20
+   nvm use 20
+
+   # Verify installation
+   node --version    # Should show v20.x.x
+   npm --version     # Should show 10.x.x or higher
+   ```
+
+4. **Install TypeScript tools globally:**
+   ```bash
+   # Install tsx (TypeScript executor) - required for running migrations
+   npm install -g tsx
+
+   # Install TypeScript compiler (optional but recommended)
+   npm install -g typescript
+
+   # Verify installation
+   tsx --version
+   tsc --version
+   ```
+
+5. **Verify complete setup:**
+   ```bash
+   # Check all installations
+   echo "Node.js: $(node --version)"
+   echo "npm: $(npm --version)"
+   echo "tsx: $(tsx --version)"
+   echo "nvm: $(nvm --version)"
+   ```
+
+**Alternative: System-wide Installation (requires root/sudo)**
+
+If you have root access or can request it from your hosting provider:
+
+```bash
+# Install Node.js 20 from NodeSource repository
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Install build tools (may be needed for some npm packages)
+sudo apt-get install -y build-essential
+
+# Install global TypeScript tools
+sudo npm install -g tsx typescript
+
+# Verify
+node --version
+npm --version
+tsx --version
+```
+
+**Troubleshooting Node.js Installation:**
+
+If `nvm` command is not found after installation:
+```bash
+# Manually load nvm
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+# Or restart your terminal session
+exit
+# Then SSH back in
+```
+
+If npm packages fail to install globally:
+```bash
+# Configure npm to use a user directory (no sudo needed)
+mkdir -p ~/.npm-global
+npm config set prefix '~/.npm-global'
+echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.bashrc
+source ~/.bashrc
+
+# Now install global packages without sudo
+npm install -g tsx typescript
+```
 
 ### 3. Enable SSH Access
 
@@ -371,6 +468,39 @@ Same as cPanel Step 6.
 
 VirtualMin GPL is a free, open-source hosting control panel that provides powerful server management features similar to cPanel and DirectAdmin.
 
+### Prerequisites Check
+
+Before deploying, ensure you have the required software installed:
+
+```bash
+# SSH into your account
+ssh username@yourdomain.com
+
+# Check Node.js version (must be 20+)
+node --version
+
+# Check npm
+npm --version
+
+# Check tsx (TypeScript executor)
+tsx --version
+
+# Check nvm (optional but recommended)
+nvm --version
+```
+
+**If any are missing or outdated**, follow the installation steps in the [Before You Begin](#before-you-begin) section above, specifically the VirtualMin Node.js installation instructions.
+
+**Quick verification test:**
+```bash
+# Test that all tools work
+node -e "console.log('Node.js works!')"
+npm -v
+tsx --help | head -1
+
+# If all commands succeed, you're ready to deploy
+```
+
 ### Step 1: Deploy the Application
 
 ```bash
@@ -521,6 +651,45 @@ Ensure your domain points to your server:
 
 ### Troubleshooting VirtualMin
 
+**Node.js or tsx command not found:**
+```bash
+# Verify Node.js installation
+node --version
+npm --version
+tsx --version
+
+# If commands not found, ensure nvm is loaded
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+# Set default Node.js version
+nvm use 20
+nvm alias default 20
+
+# Install missing tsx globally
+npm install -g tsx
+
+# Verify PATH includes npm global packages
+echo $PATH | grep -o "$HOME/.nvm"
+```
+
+**Deployment script fails with "tsx: command not found":**
+```bash
+# Install tsx globally
+npm install -g tsx
+
+# If permission denied, use npm prefix
+mkdir -p ~/.npm-global
+npm config set prefix '~/.npm-global'
+echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.bashrc
+source ~/.bashrc
+npm install -g tsx
+
+# Verify
+which tsx
+tsx --version
+```
+
 **Service won't start:**
 ```bash
 # Check service status
@@ -533,6 +702,37 @@ journalctl --user -u serverinv -n 50
 # - Port 3000 in use: Change PORT in .env
 # - Database connection: Verify DATABASE_URL
 # - Permissions: chmod -R 755 ~/serverinv
+# - Node.js not in PATH: Add nvm to systemd service (see below)
+```
+
+**Systemd service can't find Node.js:**
+
+The systemd user service needs to know where Node.js is located. Update the service file:
+
+```bash
+# Find Node.js path
+which node
+# Example output: /home/username/.nvm/versions/node/v20.11.0/bin/node
+
+# Edit service file
+nano ~/.config/systemd/user/serverinv.service
+```
+
+Update the `ExecStart` line to use the full path:
+```ini
+[Service]
+Type=simple
+WorkingDirectory=/home/username/serverinv/server
+ExecStart=/home/username/.nvm/versions/node/v20.11.0/bin/node dist/index.js
+Environment=NODE_ENV=production
+Environment=PATH=/home/username/.nvm/versions/node/v20.11.0/bin:/usr/bin:/bin
+```
+
+Then reload and restart:
+```bash
+systemctl --user daemon-reload
+systemctl --user restart serverinv
+systemctl --user status serverinv
 ```
 
 **502 Bad Gateway:**
