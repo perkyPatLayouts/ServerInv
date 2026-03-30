@@ -549,6 +549,28 @@ node --version  # Should show v20.x.x
 # Continue with update
 ```
 
+**Error: TypeScript errors about missing @types packages:**
+
+```bash
+# Example error: "Could not find a declaration file for module 'express'"
+# Cause: devDependencies not installed before building
+
+cd ~/serverinv/server
+
+# Install all dependencies (including devDependencies)
+npm install
+
+# Build the server
+npm run build
+
+# Optionally clean up devDependencies
+npm prune --production
+
+# Restart
+systemctl --user restart serverinv  # DirectAdmin/VirtualMin
+# Or restart via cPanel control panel
+```
+
 **Error: `Cannot find module` during update:**
 
 ```bash

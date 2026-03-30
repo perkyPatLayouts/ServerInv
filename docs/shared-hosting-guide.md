@@ -1069,6 +1069,32 @@ This is normal on shared hosting. The pure Node.js backup method is slower than 
 
 For databases >1GB, consider VPS hosting instead.
 
+### TypeScript Build Errors (Missing @types packages)
+
+**Error**: `Could not find a declaration file for module 'express'` or similar TypeScript errors during build.
+
+**Cause**: devDependencies (including @types packages) were not installed before building.
+
+**Solution**:
+```bash
+cd ~/serverinv/server
+
+# Install all dependencies including devDependencies
+npm install
+
+# Build the server
+npm run build
+
+# Optionally clean up devDependencies to save space
+npm prune --production
+
+# Restart application
+# cPanel: Restart in "Setup Node.js App"
+# DirectAdmin/VirtualMin: systemctl --user restart serverinv
+```
+
+**Prevention**: The deployment script should install all dependencies before building. If you see this error, the script may have been interrupted or npm install may have failed.
+
 ### Application Not Loading After Domain Change
 
 1. Update ALLOWED_ORIGINS in `.env`

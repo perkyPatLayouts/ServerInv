@@ -347,13 +347,19 @@ echo -e "${GREEN}✓ Environment configured${NC}"
 # Install server dependencies
 echo -e "${BLUE}Installing server dependencies...${NC}"
 cd "$APP_DIR/server"
-npm install --production --silent
+# Must install devDependencies (TypeScript, @types packages) to build
+npm install --silent
 echo -e "${GREEN}✓ Server dependencies installed${NC}"
 
 # Build server
 echo -e "${BLUE}Building server...${NC}"
 npm run build
 echo -e "${GREEN}✓ Server built${NC}"
+
+# Clean up devDependencies to save space (optional)
+echo -e "${BLUE}Cleaning up build dependencies...${NC}"
+npm prune --production --silent
+echo -e "${GREEN}✓ Build dependencies removed${NC}"
 
 # Install client dependencies and build
 echo -e "${BLUE}Installing client dependencies...${NC}"
