@@ -3,18 +3,42 @@ set -euo pipefail
 
 # ServerInv update script
 # Run on the remote server as root or with sudo
-# Usage: sudo bash update.sh
+# Usage:
+#   sudo bash update.sh                    (uses default 'serverinv' installation)
+#   sudo bash update.sh <username>         (uses custom installation)
 
-APP_DIR="/opt/serverinv"
-APP_USER="serverinv"
+# Determine APP_USER from argument or default
+APP_USER="${1:-serverinv}"
+
+# Validate username format
+if [[ ! "$APP_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]; then
+  echo "Error: Invalid username '$APP_USER'"
+  echo "Username must start with a letter or underscore and contain only lowercase letters, numbers, underscores, and hyphens."
+  exit 1
+fi
+
+APP_DIR="/opt/${APP_USER}"
+SERVICE_NAME="serverinv-${APP_USER}"
+
+echo "=========================================="
+echo "    ServerInv Update Script"
+echo "=========================================="
+echo ""
+echo "  Installation:  $APP_USER"
+echo "  Directory:     $APP_DIR"
+echo "  Service:       ${SERVICE_NAME}.service"
+echo ""
 
 if [ ! -d "$APP_DIR" ]; then
-  echo "Error: $APP_DIR does not exist. Is ServerInv installed?"
+  echo "Error: $APP_DIR does not exist. Is ServerInv installed for user '$APP_USER'?"
+  echo ""
+  echo "Available installations:"
+  ls -d /opt/serverinv* 2>/dev/null || echo "  (none found in /opt/)"
   exit 1
 fi
 
 echo "==> Stopping ServerInv service"
-systemctl stop serverinv
+systemctl stop ${SERVICE_NAME}
 
 echo "==> Pulling latest code"
 cd "$APP_DIR"
@@ -221,9 +245,21 @@ fi
 
 echo ""
 echo "==> Restarting ServerInv service"
-systemctl start serverinv
+systemctl start ${SERVICE_NAME}
 
 echo ""
-echo "==> Update complete!"
-echo "    Service status:"
-systemctl status serverinv --no-pager -l
+echo "=========================================="
+echo "    Update Complete!"
+echo "=========================================="
+echo ""
+echo "  Installation:  $APP_USER"
+echo "  Service:       ${SERVICE_NAME}.service"
+echo ""
+echo "  Service status:"
+systemctl status ${SERVICE_NAME} --no-pager -l || true
+echo ""
+echo "  Service management:"
+echo "    View logs:   journalctl -u ${SERVICE_NAME} -f"
+echo "    Restart:     systemctl restart ${SERVICE_NAME}"
+echo "    Stop:        systemctl stop ${SERVICE_NAME}"
+echo ""

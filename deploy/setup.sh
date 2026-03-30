@@ -28,16 +28,41 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
-APP_USER="serverinv"
-APP_DIR="/opt/serverinv"
-DB_NAME="serverinv"
-DB_USER="serverinv"
-DB_PASS="$(openssl rand -hex 16)"
-JWT_SECRET="$(openssl rand -hex 32)"
-
 echo "=========================================="
 echo "    ServerInv Deployment Script"
 echo "=========================================="
+echo ""
+
+# Prompt for installation username (for multiple installations on same system)
+echo "==> Installation Configuration"
+echo ""
+echo "To support multiple ServerInv installations on the same system,"
+echo "you can specify a unique username for this installation."
+echo ""
+read -rp "Enter username for this installation [serverinv]: " CUSTOM_USER
+APP_USER="${CUSTOM_USER:-serverinv}"
+
+# Validate username
+if [[ ! "$APP_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]; then
+  echo "Error: Invalid username. Use only lowercase letters, numbers, underscores, and hyphens."
+  echo "       Username must start with a letter or underscore."
+  exit 1
+fi
+
+# Set derived values
+APP_DIR="/opt/${APP_USER}"
+DB_NAME="${APP_USER}_db"
+DB_USER="${APP_USER}_user"
+DB_PASS="$(openssl rand -hex 16)"
+JWT_SECRET="$(openssl rand -hex 32)"
+SERVICE_NAME="serverinv-${APP_USER}"
+
+echo ""
+echo "  Installation username: ${APP_USER}"
+echo "  Application directory: ${APP_DIR}"
+echo "  Database name:         ${DB_NAME}"
+echo "  Database user:         ${DB_USER}"
+echo "  Systemd service:       ${SERVICE_NAME}.service"
 echo ""
 
 # Prompt for domain name
@@ -184,9 +209,12 @@ echo "Selected web server: $WEB_SERVER"
 echo ""
 
 # Check for existing site configurations that might conflict
+NGINX_SITE_NAME="serverinv-${APP_USER}"
+APACHE_SITE_NAME="serverinv-${APP_USER}"
+
 if [ "$WEB_SERVER" = "nginx" ]; then
-  if [ -f "/etc/nginx/sites-enabled/serverinv" ]; then
-    echo "⚠️  WARNING: /etc/nginx/sites-enabled/serverinv already exists"
+  if [ -f "/etc/nginx/sites-enabled/${NGINX_SITE_NAME}" ]; then
+    echo "⚠️  WARNING: /etc/nginx/sites-enabled/${NGINX_SITE_NAME} already exists"
     echo "    This configuration will be replaced."
     read -rp "    Continue? (y/N): " confirm
     if [[ ! "$confirm" =~ ^[Yy] ]]; then
@@ -208,8 +236,8 @@ if [ "$WEB_SERVER" = "nginx" ]; then
     fi
   fi
 elif [ "$WEB_SERVER" = "apache" ]; then
-  if [ -f "/etc/apache2/sites-enabled/serverinv.conf" ] || [ -f "/etc/httpd/conf.d/serverinv.conf" ]; then
-    echo "⚠️  WARNING: ServerInv Apache configuration already exists"
+  if [ -f "/etc/apache2/sites-enabled/${APACHE_SITE_NAME}.conf" ] || [ -f "/etc/httpd/conf.d/${APACHE_SITE_NAME}.conf" ]; then
+    echo "⚠️  WARNING: Apache configuration ${APACHE_SITE_NAME}.conf already exists"
     echo "    This configuration will be replaced."
     read -rp "    Continue? (y/N): " confirm
     if [[ ! "$confirm" =~ ^[Yy] ]]; then
@@ -398,20 +426,39 @@ sudo -u $APP_USER npx tsx src/db/migrate.ts
 sudo -u $APP_USER npx tsx src/db/seed.ts
 
 echo "==> Setting up systemd service"
-cp $APP_DIR/deploy/serverinv.service /etc/systemd/system/
+# Create custom service file for this installation
+cat > /etc/systemd/system/${SERVICE_NAME}.service << EOF
+[Unit]
+Description=ServerInv Backend (${APP_USER})
+After=network.target
+
+[Service]
+Type=simple
+User=${APP_USER}
+WorkingDirectory=${APP_DIR}/server
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=10
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
 systemctl daemon-reload
-systemctl enable serverinv
-systemctl start serverinv
+systemctl enable ${SERVICE_NAME}
+systemctl start ${SERVICE_NAME}
 
 # Configure web server
 if [ "$WEB_SERVER" = "nginx" ]; then
   echo "==> Configuring Nginx for $APP_DOMAIN"
-  cat > /etc/nginx/sites-available/serverinv << 'NGINX'
+  NGINX_SITE_NAME="serverinv-${APP_USER}"
+  cat > /etc/nginx/sites-available/${NGINX_SITE_NAME} << EOF
 server {
     listen 80;
-    server_name APP_DOMAIN_PLACEHOLDER;
+    server_name ${APP_DOMAIN};
 
-    root /opt/serverinv/client/dist;
+    root ${APP_DIR}/client/dist;
     index index.html;
 
     # Increase timeout for backup/restore operations
@@ -421,23 +468,20 @@ server {
 
     location /api/ {
         proxy_pass http://127.0.0.1:3000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
 
     location / {
-        try_files $uri $uri/ /index.html;
+        try_files \$uri \$uri/ /index.html;
     }
 }
-NGINX
-
-  # Replace placeholder with actual domain
-  sed -i "s/APP_DOMAIN_PLACEHOLDER/$APP_DOMAIN/g" /etc/nginx/sites-available/serverinv
+EOF
 
   # Enable site
-  ln -sf /etc/nginx/sites-available/serverinv /etc/nginx/sites-enabled/serverinv
+  ln -sf /etc/nginx/sites-available/${NGINX_SITE_NAME} /etc/nginx/sites-enabled/${NGINX_SITE_NAME}
 
   # Don't remove default site if other sites exist
   SITE_COUNT=$(ls -1 /etc/nginx/sites-enabled/ | wc -l)
@@ -465,11 +509,12 @@ elif [ "$WEB_SERVER" = "apache" ]; then
   a2enmod proxy proxy_http rewrite ssl headers 2>/dev/null || true
 
   # Create config
-  cat > /etc/apache2/sites-available/serverinv.conf << 'APACHE'
+  APACHE_SITE_NAME="serverinv-${APP_USER}"
+  cat > /etc/apache2/sites-available/${APACHE_SITE_NAME}.conf << EOF
 <VirtualHost *:80>
-    ServerName APP_DOMAIN_PLACEHOLDER
+    ServerName ${APP_DOMAIN}
 
-    DocumentRoot /opt/serverinv/client/dist
+    DocumentRoot ${APP_DIR}/client/dist
 
     # Increase timeout for backup/restore operations
     ProxyTimeout 300
@@ -480,7 +525,7 @@ elif [ "$WEB_SERVER" = "apache" ]; then
     ProxyPassReverse /api http://127.0.0.1:3000/api
 
     # Serve static files
-    <Directory /opt/serverinv/client/dist>
+    <Directory ${APP_DIR}/client/dist>
         Options -Indexes +FollowSymLinks
         AllowOverride None
         Require all granted
@@ -494,16 +539,13 @@ elif [ "$WEB_SERVER" = "apache" ]; then
         RewriteRule . /index.html [L]
     </Directory>
 
-    ErrorLog ${APACHE_LOG_DIR}/serverinv-error.log
-    CustomLog ${APACHE_LOG_DIR}/serverinv-access.log combined
+    ErrorLog \${APACHE_LOG_DIR}/${APACHE_SITE_NAME}-error.log
+    CustomLog \${APACHE_LOG_DIR}/${APACHE_SITE_NAME}-access.log combined
 </VirtualHost>
-APACHE
-
-  # Replace placeholder with actual domain
-  sed -i "s/APP_DOMAIN_PLACEHOLDER/$APP_DOMAIN/g" /etc/apache2/sites-available/serverinv.conf
+EOF
 
   # Enable site
-  a2ensite serverinv.conf
+  a2ensite ${APACHE_SITE_NAME}.conf
 
   # Don't disable default site if other sites exist
   SITE_COUNT=$(ls -1 /etc/apache2/sites-enabled/ | wc -l)
@@ -530,17 +572,33 @@ echo "=========================================="
 echo "    Deployment Complete!"
 echo "=========================================="
 echo ""
-echo "  Web Server:  $WEB_SERVER"
-echo "  Domain:      $APP_DOMAIN"
-echo "  App URL:     https://$APP_DOMAIN"
+echo "  Installation:"
+echo "    Username:       $APP_USER"
+echo "    Directory:      $APP_DIR"
+echo "    Service:        ${SERVICE_NAME}.service"
 echo ""
-echo "  Default login: admin / admin"
+echo "  Web Server:       $WEB_SERVER"
+echo "  Domain:           $APP_DOMAIN"
+echo "  App URL:          https://$APP_DOMAIN"
+echo ""
+echo "  Database:"
+echo "    Name:           $DB_NAME"
+echo "    User:           $DB_USER"
+echo "    Password:       $DB_PASS"
+echo ""
+echo "  Default login:    admin / admin"
 echo "  ⚠️  CHANGE THIS PASSWORD IMMEDIATELY!"
 echo ""
-echo "  Database password: $DB_PASS"
-echo "  JWT secret:        $JWT_SECRET"
+echo "  JWT secret:       $JWT_SECRET"
 echo ""
 echo "  ⚠️  SAVE THESE CREDENTIALS IN A SECURE LOCATION!"
+echo ""
+echo "  Service Management:"
+echo "    Status:         systemctl status ${SERVICE_NAME}"
+echo "    Start:          systemctl start ${SERVICE_NAME}"
+echo "    Stop:           systemctl stop ${SERVICE_NAME}"
+echo "    Restart:        systemctl restart ${SERVICE_NAME}"
+echo "    Logs:           journalctl -u ${SERVICE_NAME} -f"
 echo ""
 echo "  SSL auto-renewal is handled by certbot's systemd timer."
 echo ""

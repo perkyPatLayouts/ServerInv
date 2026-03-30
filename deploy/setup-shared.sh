@@ -2,11 +2,11 @@
 #
 # ServerInv Shared Hosting Deployment Script
 #
-# This script deploys ServerInv to shared hosting environments (cPanel/DirectAdmin)
+# This script deploys ServerInv to shared hosting environments (cPanel/DirectAdmin/VirtualMin)
 # where root access is not available.
 #
 # Requirements:
-# - cPanel or DirectAdmin control panel
+# - cPanel, DirectAdmin, or VirtualMin GPL control panel
 # - Node.js 20+ available
 # - PostgreSQL database access
 # - Sufficient disk space (~200MB)
@@ -35,10 +35,13 @@ if command -v uapi &> /dev/null; then
 elif [ -f /usr/local/directadmin/directadmin ]; then
   PANEL="directadmin"
   echo -e "${GREEN}✓ Detected: DirectAdmin${NC}"
+elif [ -d /etc/webmin/virtual-server ] || command -v virtualmin &> /dev/null; then
+  PANEL="virtualmin"
+  echo -e "${GREEN}✓ Detected: VirtualMin GPL${NC}"
 else
   echo -e "${RED}✗ Error: No supported control panel detected${NC}"
   echo ""
-  echo "This script requires cPanel or DirectAdmin."
+  echo "This script requires cPanel, DirectAdmin, or VirtualMin GPL."
   echo "For VPS/dedicated server deployment, use: ./deploy/setup.sh"
   exit 1
 fi
@@ -54,10 +57,15 @@ if ! command -v node &> /dev/null; then
     echo "  1. Log into cPanel"
     echo "  2. Go to 'Setup Node.js App'"
     echo "  3. Install Node.js 20 or higher"
-  else
+  elif [ "$PANEL" == "directadmin" ]; then
     echo "  1. Log into DirectAdmin"
     echo "  2. Go to 'Node.js Selector'"
     echo "  3. Install Node.js 20 or higher"
+  else
+    echo "  1. Log into VirtualMin"
+    echo "  2. Go to 'Server Configuration' > 'Website Options'"
+    echo "  3. Install Node.js 20 or higher via package manager"
+    echo "  Or install via command line: nvm install 20"
   fi
   exit 1
 fi
@@ -114,11 +122,17 @@ if [ "$DB_CHOICE" == "2" ]; then
     echo "  3. Create a database (e.g., serverinv)"
     echo "  4. Create a user with a strong password"
     echo "  5. Grant ALL privileges to the user on the database"
-  else
+  elif [ "$PANEL" == "directadmin" ]; then
     echo "  1. Log into DirectAdmin"
     echo "  2. Go to 'MySQL Management'"
     echo "  3. Create a database and user"
     echo "  4. Grant all privileges"
+  else
+    echo "  1. Log into VirtualMin"
+    echo "  2. Go to 'Edit Databases' > 'MySQL'"
+    echo "  3. Create a database (e.g., serverinv)"
+    echo "  4. Create a user with a strong password"
+    echo "  5. Grant ALL privileges to the user on the database"
   fi
 
   echo ""
@@ -159,11 +173,17 @@ else
     echo "  3. Create a database (e.g., serverinv)"
     echo "  4. Create a user with a strong password"
     echo "  5. Grant ALL privileges to the user on the database"
-  else
+  elif [ "$PANEL" == "directadmin" ]; then
     echo "  1. Log into DirectAdmin"
     echo "  2. Go to 'PostgreSQL Management'"
     echo "  3. Create a database and user"
     echo "  4. Grant all privileges"
+  else
+    echo "  1. Log into VirtualMin"
+    echo "  2. Go to 'Edit Databases' > 'PostgreSQL'"
+    echo "  3. Create a database (e.g., serverinv)"
+    echo "  4. Create a user with a strong password"
+    echo "  5. Grant ALL privileges to the user on the database"
   fi
 
   echo ""
@@ -553,6 +573,93 @@ SERVICE
   echo "   • Enable Let's Encrypt for: $DOMAIN"
   echo ""
   echo "5. ${BLUE}Test the deployment:${NC}"
+  echo "   • Visit: ${GREEN}https://$DOMAIN${NC}"
+  echo "   • Login with: ${GREEN}admin${NC} / ${GREEN}admin${NC}"
+  echo "   • ${RED}IMPORTANT: Change the admin password immediately!${NC}"
+  echo ""
+
+elif [ "$PANEL" == "virtualmin" ]; then
+  echo -e "${BLUE}Registering with VirtualMin GPL...${NC}"
+
+  # VirtualMin typically runs apps via systemd --user or custom scripts
+  echo -e "${BLUE}Setting up systemd user service...${NC}"
+  mkdir -p ~/.config/systemd/user
+  cat > ~/.config/systemd/user/serverinv.service << 'SERVICE'
+[Unit]
+Description=ServerInv Backend
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=$APP_DIR/server
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=10
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=default.target
+SERVICE
+
+  # Replace $APP_DIR placeholder
+  sed -i "s|\$APP_DIR|$APP_DIR|g" ~/.config/systemd/user/serverinv.service
+
+  if systemctl --user daemon-reload && \
+     systemctl --user enable serverinv && \
+     systemctl --user start serverinv; then
+    echo -e "${GREEN}✓ Application registered as systemd user service${NC}"
+  else
+    echo -e "${YELLOW}⚠ Could not start systemd service${NC}"
+    echo "You may need to start the app manually:"
+    echo "  cd $APP_DIR/server && node dist/index.js &"
+  fi
+
+  echo ""
+  echo -e "${YELLOW}=========================================="
+  echo "  NEXT STEPS - VirtualMin Configuration"
+  echo "==========================================${NC}"
+  echo ""
+  echo "1. ${BLUE}Setup Virtual Server:${NC}"
+  echo "   • Log into VirtualMin"
+  echo "   • Go to 'Create Virtual Server' (if not already created)"
+  echo "   • Create domain: ${GREEN}$DOMAIN${NC}"
+  echo "   • Or use 'Edit Virtual Server' for existing domain"
+  echo ""
+  echo "2. ${BLUE}Configure Document Root:${NC}"
+  echo "   • In VirtualMin, go to 'Server Configuration' > 'Website Options'"
+  echo "   • Set document root to: ${GREEN}$APP_DIR/client/dist${NC}"
+  echo "   • Or create a symbolic link:"
+  echo "     ln -s $APP_DIR/client/dist ~/public_html"
+  echo ""
+  echo "3. ${BLUE}Configure Reverse Proxy:${NC}"
+  echo "   • In VirtualMin, go to 'Server Configuration' > 'Edit Proxy Balancers'"
+  echo "   • Add proxy for path: /api"
+  echo "   • Target URL: http://localhost:3000/api"
+  echo "   • Or manually add to ${GREEN}$APP_DIR/client/dist/.htaccess${NC}:"
+  echo ""
+  echo "     RewriteEngine On"
+  echo "     "
+  echo "     # Proxy API requests to Node.js backend"
+  echo "     RewriteCond %{REQUEST_URI} ^/api"
+  echo "     RewriteRule ^api/(.*)$ http://127.0.0.1:3000/api/\$1 [P,L]"
+  echo "     "
+  echo "     # SPA routing - serve index.html for non-file requests"
+  echo "     RewriteCond %{REQUEST_FILENAME} !-f"
+  echo "     RewriteCond %{REQUEST_FILENAME} !-d"
+  echo "     RewriteRule . /index.html [L]"
+  echo ""
+  echo "4. ${BLUE}Enable SSL:${NC}"
+  echo "   • In VirtualMin, go to 'Server Configuration' > 'SSL Certificate'"
+  echo "   • Enable 'Let's Encrypt' certificate for: $DOMAIN"
+  echo "   • Or use command line: virtualmin generate-letsencrypt-cert --domain $DOMAIN"
+  echo ""
+  echo "5. ${BLUE}Start Application on Boot:${NC}"
+  echo "   • Ensure systemd user service is enabled:"
+  echo "     systemctl --user status serverinv"
+  echo "   • To start manually:"
+  echo "     systemctl --user start serverinv"
+  echo ""
+  echo "6. ${BLUE}Test the deployment:${NC}"
   echo "   • Visit: ${GREEN}https://$DOMAIN${NC}"
   echo "   • Login with: ${GREEN}admin${NC} / ${GREEN}admin${NC}"
   echo "   • ${RED}IMPORTANT: Change the admin password immediately!${NC}"

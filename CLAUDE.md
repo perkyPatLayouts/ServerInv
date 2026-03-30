@@ -76,12 +76,23 @@ ServerInv supports two deployment scenarios:
 - **Web Server**: Nginx (recommended) or Apache
 - **Automated script**: `deploy/setup.sh` with interactive prompts
 - **Features**: Fast native backups, systemd service, full control
+- **Multiple Installations**: Supports multiple ServerInv instances on the same server by specifying different usernames
+  - Each installation gets its own:
+    - System user (e.g., `serverinv`, `serverinv-prod`, `serverinv-dev`)
+    - Application directory (e.g., `/opt/serverinv`, `/opt/serverinv-prod`)
+    - Database name and user
+    - Systemd service (e.g., `serverinv-serverinv.service`, `serverinv-serverinv-prod.service`)
+    - Web server configuration
 
 ### Shared Hosting Deployment
-- **Target**: cPanel or DirectAdmin hosting account
+- **Target**: cPanel, DirectAdmin, or VirtualMin GPL hosting account
 - **Database**: MySQL/MariaDB (typical) or PostgreSQL
 - **Web Server**: Apache, LiteSpeed, or compatible (with .htaccess support)
 - **Automated script**: `deploy/setup-shared.sh` with control panel detection
+- **Supported Control Panels**:
+  - cPanel
+  - DirectAdmin
+  - VirtualMin GPL (new)
 - **Features**: No root access needed, pure Node.js backups, budget-friendly
 
 ### Security Requirements (Both Deployments)
