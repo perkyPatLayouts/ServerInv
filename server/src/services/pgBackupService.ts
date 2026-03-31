@@ -339,25 +339,42 @@ export class PgBackupService {
         if (options.conflictResolution === 'use-restored') {
           console.log("[PgBackupService] Converting COPY statements to INSERT for conflict resolution");
           statements = this.convertCopyToInsert(statements, options.conflictResolution);
+
+          // Log first 3 converted INSERT statements for debugging
+          console.log("[PgBackupService] Sample converted INSERT statements:");
+          let sampleCount = 0;
+          for (const stmt of statements) {
+            if (stmt.trim().toUpperCase().startsWith('INSERT')) {
+              console.log(`[PgBackupService] Sample ${sampleCount + 1}: ${stmt.substring(0, 200)}...`);
+              sampleCount++;
+              if (sampleCount >= 3) break;
+            }
+          }
         }
+
+        let insertCount = 0;
+        let insertSkipCount = 0;
 
         for (let statement of statements) {
           if (!statement.trim()) continue;
 
           // Skip users table statements if excludeUsers is true
           if (options.excludeUsers && this.isUsersTableStatement(statement)) {
+            console.log("[PgBackupService] Skipped: users table statement");
             skippedCount++;
             continue;
           }
 
           // Skip ownership statements
           if (this.isOwnershipStatement(statement)) {
+            console.log(`[PgBackupService] Skipped: ownership statement - ${statement.substring(0, 50)}...`);
             skippedCount++;
             continue;
           }
 
           // Handle conflicts for INSERT statements
           if (statement.trim().toUpperCase().startsWith('INSERT')) {
+            insertCount++;
             const originalStatement = statement;
             statement = this.convertInsertForMerge(statement, options.conflictResolution || 'keep-existing');
 
@@ -376,6 +393,9 @@ export class PgBackupService {
               console.log(`[PgBackupService] Executed ${executedCount} statements...`);
             }
           } catch (err: any) {
+            const isInsert = statement.trim().toUpperCase().startsWith('INSERT');
+            if (isInsert) insertSkipCount++;
+
             // Tolerate specific errors in merge mode
             if (
               err.message.includes('already exists') ||
@@ -383,27 +403,30 @@ export class PgBackupService {
               err.message.includes('multiple primary keys') ||
               err.message.includes('multiple') // catches "multiple X for table Y are not allowed"
             ) {
+              console.error(`[PgBackupService] Skipped (${isInsert ? 'INSERT' : 'other'}): ${err.message.substring(0, 80)}`);
+              console.error(`[PgBackupService] Statement: ${statement.substring(0, 150)}...`);
               skippedCount++;
               continue;
             }
 
             // For duplicate key errors, log more details to debug conflict resolution
             if (err.message.includes('duplicate key')) {
-              console.error("[PgBackupService] Duplicate key error (conflict resolution may not be working):");
-              console.error("Statement preview:", statement.substring(0, 250));
+              console.error("[PgBackupService] ERROR: Duplicate key (ON CONFLICT should prevent this!)");
+              console.error("Statement:", statement.substring(0, 300));
               console.error("Error:", err.message);
-              console.error("Expected: ON CONFLICT clause should prevent this error");
               skippedCount++;
               continue;
             }
 
-            // Log unhandled errors but don't fail the restore
-            console.error("[PgBackupService] Skipping statement due to error:");
-            console.error("Statement preview:", statement.substring(0, 200));
+            // Log ALL other errors with full context
+            console.error(`[PgBackupService] ERROR (${isInsert ? 'INSERT' : 'other'} statement):`);
+            console.error("Statement:", statement.substring(0, 300));
             console.error("Error:", err.message);
             skippedCount++;
           }
         }
+
+        console.log(`[PgBackupService] INSERT summary: ${insertCount} total, ${insertCount - insertSkipCount} executed, ${insertSkipCount} skipped`);
 
         console.log(`[PgBackupService] Successfully executed ${executedCount} statements`);
         if (skippedCount > 0) {
@@ -529,25 +552,37 @@ export class PgBackupService {
             // Parse tab-separated values
             const values = dataLine.split('\t').map(v => {
               if (v === '\\N') return 'NULL'; // PostgreSQL null marker
-              // Escape single quotes
-              const escaped = v.replace(/'/g, "''");
+              // Escape single quotes and backslashes
+              const escaped = v.replace(/\\/g, '\\\\').replace(/'/g, "''");
               return `'${escaped}'`;
             });
 
             if (values.length === columns.length) {
-              const columnList = columns.join(', ');
+              // Quote all column names to handle reserved words and special chars
+              const quotedColumns = columns.map(col => {
+                const cleaned = col.trim().replace(/^["']|["']$/g, ''); // Remove existing quotes
+                return `"${cleaned}"`;
+              });
+              const columnList = quotedColumns.join(', ');
               const valueList = values.join(', ');
-              let insertStmt = `INSERT INTO ${tableName} (${columnList}) VALUES (${valueList})`;
 
-              // Add ON CONFLICT clause for use-restored mode
+              // Quote table name
+              const quotedTableName = tableName.replace(/^["']|["']$/g, '');
+              let insertStmt = `INSERT INTO "${quotedTableName}" (${columnList}) VALUES (${valueList})`;
+
+              // Add ON CONFLICT clause
               if (resolution === 'use-restored') {
-                const updateClauses = columns
-                  .filter(col => !col.includes('id')) // Don't update primary key
+                // Don't update the id column (primary key)
+                const updateClauses = quotedColumns
+                  .filter((col, idx) => columns[idx].toLowerCase().trim() !== 'id')
                   .map(col => `${col} = EXCLUDED.${col}`)
                   .join(', ');
 
                 if (updateClauses) {
                   insertStmt += ` ON CONFLICT (id) DO UPDATE SET ${updateClauses}`;
+                } else {
+                  // No columns to update (only has id column?)
+                  insertStmt += ` ON CONFLICT (id) DO NOTHING`;
                 }
               } else {
                 insertStmt += ` ON CONFLICT (id) DO NOTHING`;
