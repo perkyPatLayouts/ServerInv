@@ -611,7 +611,39 @@ export class PgBackupService {
 
               if (tabCount === 0 && tabsInLine >= expectedFieldCount - 1) {
                 // This line has enough tabs to be a complete row
-                const values = line.split('\t');
+                let values = line.split('\t');
+
+                // Handle fields that contain embedded tabs (e.g., servers.notes with benchmark tables)
+                if (values.length > expectedFieldCount) {
+                  // Too many segments - some field contains tabs
+                  // Strategy: assume first N-1 fields and last M fields are correct,
+                  // and join the middle segments with tabs
+                  const reconstructed: string[] = [];
+
+                  // For servers: 20 fields, often field 15 (notes) contains tabs
+                  // Fields 1-14, notes (15), fields 16-20
+                  const fieldsBeforeNotes = 14; // Adjust based on table structure
+                  const fieldsAfterNotes = 5;
+
+                  // Take first fields before notes
+                  for (let j = 0; j < fieldsBeforeNotes; j++) {
+                    reconstructed.push(values[j]);
+                  }
+
+                  // Join middle segments with tabs (the notes field)
+                  const middleStart = fieldsBeforeNotes;
+                  const middleEnd = values.length - fieldsAfterNotes;
+                  const notesField = values.slice(middleStart, middleEnd).join('\t');
+                  reconstructed.push(notesField);
+
+                  // Take last fields after notes
+                  for (let j = values.length - fieldsAfterNotes; j < values.length; j++) {
+                    reconstructed.push(values[j]);
+                  }
+
+                  values = reconstructed;
+                }
+
                 this.createInsertFromCopyRow(values, columns, tableName, resolution, newStatements);
               } else {
                 // Multi-line row: accumulate until we have all fields
