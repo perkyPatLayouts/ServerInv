@@ -691,9 +691,15 @@ export class PgBackupService {
       insertStmt += ';';
       newStatements.push(insertStmt);
 
-      // Debug: log first servers INSERT statement
-      if (tableName.includes('servers') && newStatements.length <= 100) {
-        console.log(`[PgBackupService] FULL servers INSERT: ${insertStmt}`);
+      // Debug: log table name and first INSERT for each table
+      const insertCount = newStatements.filter(s => s.includes(`INSERT INTO ${quotedTableName}`)).length;
+      if (insertCount === 1) {
+        console.log(`[PgBackupService] First INSERT for ${tableName}:`);
+        console.log(`[PgBackupService]   Statement length: ${insertStmt.length} chars`);
+        console.log(`[PgBackupService]   Has ON CONFLICT: ${insertStmt.includes('ON CONFLICT')}`);
+        if (tableName.includes('servers')) {
+          console.log(`[PgBackupService]   FULL: ${insertStmt}`);
+        }
       }
     }
   }
