@@ -324,7 +324,7 @@ export class PgBackupService {
       }
 
       // Parse SQL into statements
-      const statements = this.parseSQL(sqlContent);
+      let statements = this.parseSQL(sqlContent);
       console.log(`[PgBackupService] Parsed ${statements.length} SQL statements from backup`);
 
       let executedCount = 0;
@@ -334,6 +334,12 @@ export class PgBackupService {
       // This allows us to tolerate errors without aborting everything
       if (options.mergeMode) {
         console.log("[PgBackupService] Executing statements individually (merge mode)");
+
+        // Convert COPY statements to INSERT for conflict resolution
+        if (options.conflictResolution === 'use-restored') {
+          console.log("[PgBackupService] Converting COPY statements to INSERT for conflict resolution");
+          statements = this.convertCopyToInsert(statements, options.conflictResolution);
+        }
 
         for (let statement of statements) {
           if (!statement.trim()) continue;
@@ -484,6 +490,86 @@ export class PgBackupService {
       upperStatement.startsWith('GRANT') ||
       upperStatement.startsWith('REVOKE')
     );
+  }
+
+  /**
+   * Convert COPY statements to INSERT statements for conflict resolution.
+   * COPY doesn't support ON CONFLICT, so we need INSERT for merge mode.
+   */
+  private convertCopyToInsert(statements: string[], resolution: 'keep-existing' | 'use-restored'): string[] {
+    const newStatements: string[] = [];
+    let i = 0;
+
+    while (i < statements.length) {
+      const statement = statements[i];
+      const upperStatement = statement.trim().toUpperCase();
+
+      // Check if this is a COPY statement
+      if (upperStatement.startsWith('COPY ')) {
+        // Parse: COPY table_name (col1, col2, ...) FROM stdin;
+        const copyMatch = statement.match(/COPY\s+(\S+)\s*\(([^)]+)\)\s+FROM\s+stdin/i);
+        if (copyMatch) {
+          const tableName = copyMatch[1];
+          const columns = copyMatch[2].split(',').map(c => c.trim());
+
+          // Skip to next statement which should be data rows
+          i++;
+
+          // Collect data rows until we hit \. or run out of statements
+          while (i < statements.length) {
+            const dataLine = statements[i].trim();
+
+            // End of COPY data
+            if (dataLine === '\\.' || dataLine === '') {
+              i++;
+              break;
+            }
+
+            // Convert data line to INSERT statement
+            // Parse tab-separated values
+            const values = dataLine.split('\t').map(v => {
+              if (v === '\\N') return 'NULL'; // PostgreSQL null marker
+              // Escape single quotes
+              const escaped = v.replace(/'/g, "''");
+              return `'${escaped}'`;
+            });
+
+            if (values.length === columns.length) {
+              const columnList = columns.join(', ');
+              const valueList = values.join(', ');
+              let insertStmt = `INSERT INTO ${tableName} (${columnList}) VALUES (${valueList})`;
+
+              // Add ON CONFLICT clause for use-restored mode
+              if (resolution === 'use-restored') {
+                const updateClauses = columns
+                  .filter(col => !col.includes('id')) // Don't update primary key
+                  .map(col => `${col} = EXCLUDED.${col}`)
+                  .join(', ');
+
+                if (updateClauses) {
+                  insertStmt += ` ON CONFLICT (id) DO UPDATE SET ${updateClauses}`;
+                }
+              } else {
+                insertStmt += ` ON CONFLICT (id) DO NOTHING`;
+              }
+
+              insertStmt += ';';
+              newStatements.push(insertStmt);
+            }
+
+            i++;
+          }
+          continue;
+        }
+      }
+
+      // Not a COPY statement, keep as-is
+      newStatements.push(statement);
+      i++;
+    }
+
+    console.log(`[PgBackupService] Converted COPY to INSERT: ${statements.length} -> ${newStatements.length} statements`);
+    return newStatements;
   }
 
   /**
