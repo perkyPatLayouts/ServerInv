@@ -565,65 +565,70 @@ export class PgBackupService {
           const tableName = copyMatch[1];
           const columns = copyMatch[2].split(',').map(c => c.trim());
 
-          // Skip to next statement which should be data rows
+          // Skip to next statement which contains all the data rows in one blob
           i++;
 
-          // Collect data rows until we hit \. or run out of statements
-          while (i < statements.length) {
-            const dataLine = statements[i].trim();
+          if (i < statements.length) {
+            const dataBlob = statements[i];
 
-            // End of COPY data
-            if (dataLine === '\\.' || dataLine === '') {
-              i++;
-              break;
-            }
+            // Split the data blob by newlines to get individual rows
+            const dataRows = dataBlob.split('\n');
 
-            // Convert data line to INSERT statement
-            // Parse tab-separated values
-            const values = dataLine.split('\t').map(v => {
-              if (v === '\\N') return 'NULL'; // PostgreSQL null marker
-              // Escape single quotes and backslashes
-              const escaped = v.replace(/\\/g, '\\\\').replace(/'/g, "''");
-              return `'${escaped}'`;
-            });
+            for (const dataLine of dataRows) {
+              const trimmedLine = dataLine.trim();
 
-            if (values.length === columns.length) {
-              // Quote all column names to handle reserved words and special chars
-              const quotedColumns = columns.map(col => {
-                const cleaned = col.trim().replace(/^["']|["']$/g, ''); // Remove existing quotes
-                return `"${cleaned}"`;
-              });
-              const columnList = quotedColumns.join(', ');
-              const valueList = values.join(', ');
-
-              // Quote table name
-              const quotedTableName = tableName.replace(/^["']|["']$/g, '');
-              let insertStmt = `INSERT INTO "${quotedTableName}" (${columnList}) VALUES (${valueList})`;
-
-              // Add ON CONFLICT clause
-              if (resolution === 'use-restored') {
-                // Don't update the id column (primary key)
-                const updateClauses = quotedColumns
-                  .filter((col, idx) => columns[idx].toLowerCase().trim() !== 'id')
-                  .map(col => `${col} = EXCLUDED.${col}`)
-                  .join(', ');
-
-                if (updateClauses) {
-                  insertStmt += ` ON CONFLICT (id) DO UPDATE SET ${updateClauses}`;
-                } else {
-                  // No columns to update (only has id column?)
-                  insertStmt += ` ON CONFLICT (id) DO NOTHING`;
-                }
-              } else {
-                insertStmt += ` ON CONFLICT (id) DO NOTHING`;
+              // End of COPY data or empty line
+              if (trimmedLine === '\\.' || trimmedLine === '') {
+                continue;
               }
 
-              insertStmt += ';';
-              newStatements.push(insertStmt);
-            }
+              // Convert data line to INSERT statement
+              // Parse tab-separated values
+              const values = trimmedLine.split('\t').map(v => {
+                if (v === '\\N') return 'NULL'; // PostgreSQL null marker
+                // Escape single quotes and backslashes
+                const escaped = v.replace(/\\/g, '\\\\').replace(/'/g, "''");
+                return `'${escaped}'`;
+              });
 
-            i++;
+              if (values.length === columns.length) {
+                // Quote all column names to handle reserved words and special chars
+                const quotedColumns = columns.map(col => {
+                  const cleaned = col.trim().replace(/^["']|["']$/g, ''); // Remove existing quotes
+                  return `"${cleaned}"`;
+                });
+                const columnList = quotedColumns.join(', ');
+                const valueList = values.join(', ');
+
+                // Quote table name
+                const quotedTableName = tableName.replace(/^["']|["']$/g, '');
+                let insertStmt = `INSERT INTO "${quotedTableName}" (${columnList}) VALUES (${valueList})`;
+
+                // Add ON CONFLICT clause
+                if (resolution === 'use-restored') {
+                  // Don't update the id column (primary key)
+                  const updateClauses = quotedColumns
+                    .filter((col, idx) => columns[idx].toLowerCase().trim() !== 'id')
+                    .map(col => `${col} = EXCLUDED.${col}`)
+                    .join(', ');
+
+                  if (updateClauses) {
+                    insertStmt += ` ON CONFLICT (id) DO UPDATE SET ${updateClauses}`;
+                  } else {
+                    // No columns to update (only has id column?)
+                    insertStmt += ` ON CONFLICT (id) DO NOTHING`;
+                  }
+                } else {
+                  insertStmt += ` ON CONFLICT (id) DO NOTHING`;
+                }
+
+                insertStmt += ';';
+                newStatements.push(insertStmt);
+              }
+            }
           }
+
+          i++; // Move past the data blob statement
           continue;
         }
       }
