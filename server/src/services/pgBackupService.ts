@@ -571,6 +571,14 @@ export class PgBackupService {
           if (i < statements.length) {
             const dataBlob = statements[i];
 
+            // Debug logging for servers table
+            if (tableName.includes('servers')) {
+              console.log(`[PgBackupService] Processing COPY for ${tableName}`);
+              console.log(`[PgBackupService]   Columns: ${columns.length}`);
+              console.log(`[PgBackupService]   Data blob length: ${dataBlob.length} chars`);
+              console.log(`[PgBackupService]   Data blob preview: ${dataBlob.substring(0, 200)}...`);
+            }
+
             // Parse COPY data properly: fields are tab-separated, rows are newline-separated
             // BUT fields can contain newlines! We need to count tabs to identify row boundaries.
             const expectedFieldCount = columns.length;
