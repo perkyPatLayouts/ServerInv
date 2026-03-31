@@ -82,11 +82,15 @@ function getMysqlDockerContainer(): string {
 }
 
 /** GET /api/backup/download — create database dump and stream to browser */
-router.get("/download", requireAdmin, async (_req: Request, res: Response) => {
+router.get("/download", requireAdmin, async (req: Request, res: Response) => {
+  const excludeUsers = req.query.excludeUsers === 'true';
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const filename = `serverinv-backup-${timestamp}.sql`;
+  const filenameSuffix = excludeUsers ? '-no-users' : '';
+  const filename = `serverinv-backup${filenameSuffix}-${timestamp}.sql`;
   const tmpDir = process.env.TMP_DIR || "/tmp";
   const tmpFile = path.join(tmpDir, filename);
+
+  console.log(`[Backup] Starting backup download (excludeUsers: ${excludeUsers})`);
 
   try {
     const dbUrl = process.env.DATABASE_URL!;
@@ -95,12 +99,14 @@ router.get("/download", requireAdmin, async (_req: Request, res: Response) => {
       // PostgreSQL backup
       const usePgDump = commandExists("pg_dump") || commandExists("docker");
 
-      if (usePgDump) {
+      if (usePgDump && !excludeUsers) {
+        // Use native pg_dump only when NOT excluding users
         const db = parseDbUrl(dbUrl);
         const outFd = fs.openSync(tmpFile, "w");
 
         if (commandExists("pg_dump")) {
           // Fast path: Use native pg_dump with env-based password
+          console.log("[Backup] Using native pg_dump for full backup");
           const result = spawnSync("pg_dump", [
             "-h", db.host, "-p", db.port, "-U", db.user, db.database
           ], {
@@ -113,6 +119,7 @@ router.get("/download", requireAdmin, async (_req: Request, res: Response) => {
           }
         } else {
           // Docker path
+          console.log("[Backup] Using docker pg_dump for full backup");
           const container = getDockerContainer();
           const result = spawnSync("docker", [
             "exec", "-i",
@@ -129,17 +136,23 @@ router.get("/download", requireAdmin, async (_req: Request, res: Response) => {
           }
         }
       } else {
-        // Pure Node.js backup (shared hosting environments)
-        console.log("Using pure Node.js PostgreSQL backup (pg_dump not available)");
+        // Pure Node.js backup (shared hosting environments or when excluding users)
+        if (excludeUsers) {
+          console.log("[Backup] Using pure Node.js PostgreSQL backup (excluding users table)");
+        } else {
+          console.log("[Backup] Using pure Node.js PostgreSQL backup (pg_dump not available)");
+        }
         const backupService = new PgBackupService(pool);
-        const sql = await backupService.generateBackup();
+        const sql = await backupService.generateBackup({ excludeUsers });
         fs.writeFileSync(tmpFile, sql, "utf8");
       }
     } else {
       // MySQL backup
       const useMysqldump = commandExists("mysqldump");
 
-      if (useMysqldump) {
+      if (useMysqldump && !excludeUsers) {
+        // Use native mysqldump only when NOT excluding users
+        console.log("[Backup] Using native mysqldump for full backup");
         const db = parseDbUrl(dbUrl);
         const outFd = fs.openSync(tmpFile, "w");
 
@@ -155,10 +168,14 @@ router.get("/download", requireAdmin, async (_req: Request, res: Response) => {
           throw new Error(`mysqldump failed: ${result.stderr?.toString()}`);
         }
       } else {
-        // Pure Node.js backup (shared hosting environments)
-        console.log("Using pure Node.js MySQL backup (mysqldump not available)");
+        // Pure Node.js backup (shared hosting environments or when excluding users)
+        if (excludeUsers) {
+          console.log("[Backup] Using pure Node.js MySQL backup (excluding users table)");
+        } else {
+          console.log("[Backup] Using pure Node.js MySQL backup (mysqldump not available)");
+        }
         const backupService = new MysqlBackupService(pool);
-        const sql = await backupService.generateBackup();
+        const sql = await backupService.generateBackup({ excludeUsers });
         fs.writeFileSync(tmpFile, sql, "utf8");
       }
     }
@@ -192,24 +209,32 @@ router.post("/restore", requireAdmin, upload.single("backup"), async (req: Reque
     return;
   }
 
+  // Parse restore options from form data
+  const excludeUsers = req.body.excludeUsers === 'true';
+  const mergeMode = req.body.mergeMode === 'true';
+  const conflictResolution = (req.body.conflictResolution || 'keep-existing') as 'keep-existing' | 'use-restored';
+
   const tmpFile = file.path;
   console.log(`[Backup] Starting restore from file: ${file.originalname} (${file.size} bytes)`);
+  console.log(`[Backup] Options: excludeUsers=${excludeUsers}, mergeMode=${mergeMode}, conflictResolution=${conflictResolution}`);
 
   try {
     const dbUrl = process.env.DATABASE_URL!;
+    const restoreOptions = { excludeUsers, mergeMode, conflictResolution };
 
     if (DB_TYPE === 'postgres') {
       // PostgreSQL restore
       const usePsql = commandExists("psql") || commandExists("docker");
 
-      if (usePsql) {
+      // Use native psql only for simple clean restores (no special options)
+      if (usePsql && !excludeUsers && !mergeMode) {
         const db = parseDbUrl(dbUrl);
 
         if (commandExists("psql")) {
           // Fast path: Use native psql with env-based password
-          console.log("[Backup] Using native psql command for restore");
+          console.log("[Backup] Using native psql command for clean restore");
 
-          // First, drop and recreate schema for clean restore
+          // Drop and recreate schema for clean restore
           console.log("[Backup] Dropping existing schema for clean restore...");
           const cleanResult = spawnSync("psql", [
             "-h", db.host, "-p", db.port, "-U", db.user, db.database,
@@ -297,24 +322,29 @@ router.post("/restore", requireAdmin, upload.single("backup"), async (req: Reque
           console.log("[Backup] Docker psql restore completed successfully");
         }
       } else {
-        // Pure Node.js restore (shared hosting environments)
-        console.log("[Backup] Using pure Node.js PostgreSQL restore (psql not available)");
+        // Pure Node.js restore (shared hosting environments or special options)
+        if (excludeUsers || mergeMode) {
+          console.log("[Backup] Using pure Node.js PostgreSQL restore (special options enabled)");
+        } else {
+          console.log("[Backup] Using pure Node.js PostgreSQL restore (psql not available)");
+        }
         const backupService = new PgBackupService(pool);
         const sql = fs.readFileSync(tmpFile, "utf8");
         console.log(`[Backup] Read SQL file: ${sql.length} characters`);
-        await backupService.restoreBackup(sql);
+        await backupService.restoreBackup(sql, restoreOptions);
         console.log("[Backup] Pure Node.js restore completed successfully");
       }
     } else {
       // MySQL restore
       const useMysql = commandExists("mysql");
 
-      if (useMysql) {
+      // Use native mysql only for simple clean restores (no special options)
+      if (useMysql && !excludeUsers && !mergeMode) {
         const db = parseDbUrl(dbUrl);
 
-        console.log("[Backup] Using native mysql command for restore");
+        console.log("[Backup] Using native mysql command for clean restore");
 
-        // First, drop all existing tables for clean restore
+        // Drop all existing tables for clean restore
         console.log("[Backup] Dropping existing tables for clean restore...");
         const getTables = spawnSync("mysql", [
           "-h", db.host, "-P", db.port, "-u", db.user, db.database,
@@ -369,12 +399,16 @@ router.post("/restore", requireAdmin, upload.single("backup"), async (req: Reque
         }
         console.log("[Backup] Native mysql restore completed successfully");
       } else {
-        // Pure Node.js restore (shared hosting environments)
-        console.log("[Backup] Using pure Node.js MySQL restore (mysql not available)");
+        // Pure Node.js restore (shared hosting environments or special options)
+        if (excludeUsers || mergeMode) {
+          console.log("[Backup] Using pure Node.js MySQL restore (special options enabled)");
+        } else {
+          console.log("[Backup] Using pure Node.js MySQL restore (mysql not available)");
+        }
         const backupService = new MysqlBackupService(pool);
         const sql = fs.readFileSync(tmpFile, "utf8");
         console.log(`[Backup] Read SQL file: ${sql.length} characters`);
-        await backupService.restoreBackup(sql);
+        await backupService.restoreBackup(sql, restoreOptions);
         console.log("[Backup] Pure Node.js restore completed successfully");
       }
     }

@@ -548,3 +548,173 @@ ls /opt/serverinv/client/dist/  # Should contain index.html and assets/
 ```bash
 sudo chown -R serverinv:serverinv /opt/serverinv
 ```
+
+---
+
+## Backup & Restore Features
+
+ServerInv provides flexible backup and restore options to handle different scenarios.
+
+### Backup Options
+
+#### Standard Backup
+
+Download a complete database backup including all data and users:
+
+1. Log into ServerInv as admin
+2. Go to **Backup & Restore** page
+3. Click **Download Backup**
+4. Save the `.sql` file to your computer
+
+#### Exclude Users from Backup
+
+Useful for security/privacy or when moving data between environments:
+
+1. Go to **Backup & Restore** page
+2. Check **"Exclude users from backup"**
+3. Click **Download Backup**
+
+**Use cases:**
+- Sharing data samples without exposing user credentials
+- Moving data between production and staging
+- Backing up only application data for analysis
+
+### Restore Options
+
+#### Clean Restore (Default)
+
+Completely replaces all existing database contents:
+
+1. Go to **Backup & Restore** page
+2. Ensure **"Merge with existing data"** is unchecked
+3. Click **Upload & Restore**
+4. Select your `.sql` backup file
+5. Confirm the restore
+
+**Behavior:**
+- Drops all existing tables
+- Recreates schema from backup
+- Inserts all data from backup
+- **All current data will be lost**
+
+#### Merge Restore
+
+Merges backup data with existing database:
+
+1. Go to **Backup & Restore** page
+2. Check **"Merge with existing data"**
+3. Choose conflict resolution strategy:
+   - **Keep existing rows** - Skip rows that already exist (INSERT IGNORE / ON CONFLICT DO NOTHING)
+   - **Use restored rows** - Replace existing rows with backup data (REPLACE / ON CONFLICT DO UPDATE)
+4. Click **Upload & Restore**
+5. Select your `.sql` backup file
+6. Confirm the restore
+
+**Behavior:**
+- Preserves existing tables
+- Adds new rows from backup
+- Handles duplicate keys based on conflict resolution
+- Useful for syncing data between environments
+
+#### Exclude Users from Restore
+
+Restore data while keeping existing user accounts:
+
+1. Go to **Backup & Restore** page
+2. Check **"Exclude users from restore"**
+3. Configure other options as needed
+4. Click **Upload & Restore**
+
+**Use cases:**
+- Restoring data to a server with established users
+- Importing data samples without affecting user accounts
+- Testing backups without disrupting authentication
+
+### Common Scenarios
+
+#### Scenario 1: Full System Restore
+
+**Goal**: Completely restore from backup (disaster recovery)
+
+**Steps:**
+1. Upload backup file
+2. Use **Clean Restore** (default)
+3. All data including users will be restored
+
+#### Scenario 2: Data Migration Between Environments
+
+**Goal**: Copy production data to staging without production users
+
+**Steps:**
+1. On **production**: Download backup with **"Exclude users"** checked
+2. On **staging**: Upload backup with **Clean Restore**
+3. Staging now has production data with staging users intact
+
+#### Scenario 3: Sync Specific Data
+
+**Goal**: Add new servers from backup without losing current data
+
+**Steps:**
+1. Upload backup file
+2. Enable **"Merge with existing data"**
+3. Choose **"Keep existing rows"** (prevents overwriting)
+4. Optionally check **"Exclude users"**
+5. Restore - new data added, existing data preserved
+
+#### Scenario 4: Replace Outdated Records
+
+**Goal**: Update database with newer backup data
+
+**Steps:**
+1. Upload backup file
+2. Enable **"Merge with existing data"**
+3. Choose **"Use restored rows"** (replaces with backup data)
+4. Restore - existing rows updated with backup values
+
+### Technical Details
+
+#### PostgreSQL Conflict Resolution
+
+- **Keep existing**: `INSERT ... ON CONFLICT (id) DO NOTHING`
+- **Use restored**: `INSERT ... ON CONFLICT (id) DO UPDATE SET ...`
+
+#### MySQL Conflict Resolution
+
+- **Keep existing**: `INSERT IGNORE INTO ...`
+- **Use restored**: `REPLACE INTO ...`
+
+#### Performance
+
+- **Clean restore**: Fast (DROP SCHEMA CASCADE, bulk insert)
+- **Merge restore**: Slower (checks each row for conflicts)
+- **Native tools** (pg_dump/mysqldump): Fastest for simple backups
+- **Pure Node.js**: Slower but works on all hosting environments
+
+### Best Practices
+
+1. **Regular backups**: Schedule weekly full backups
+2. **Test restores**: Verify backups work before you need them
+3. **Offsite storage**: Store backups outside the server
+4. **Version control**: Keep multiple backup versions
+5. **Document exclusions**: Note if users were excluded from backup
+6. **Pre-restore backup**: Always backup before restoring
+
+### Command-Line Backup (Advanced)
+
+For automated backups, use the API:
+
+```bash
+# Download full backup
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  http://your-server/api/backup/download \
+  -o backup-$(date +%Y%m%d).sql
+
+# Download backup without users
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  "http://your-server/api/backup/download?excludeUsers=true" \
+  -o backup-no-users-$(date +%Y%m%d).sql
+```
+
+---
+
+Last Updated: 2026-03-31

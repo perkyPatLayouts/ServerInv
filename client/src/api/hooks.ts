@@ -70,19 +70,26 @@ export function useServerApps(serverId: number) {
 /** Download database backup as .sql file to browser. */
 export function useBackupDownload() {
   return useMutation({
-    mutationFn: async () => {
-      const res = await api.get("/backup/download", { responseType: "blob" });
+    mutationFn: async (options: { excludeUsers?: boolean } = {}) => {
+      const params = new URLSearchParams();
+      if (options.excludeUsers) {
+        params.append('excludeUsers', 'true');
+      }
+      const queryString = params.toString();
+      const url = `/backup/download${queryString ? `?${queryString}` : ''}`;
+
+      const res = await api.get(url, { responseType: "blob" });
       const disposition = res.headers["content-disposition"] || "";
       const match = disposition.match(/filename="?([^"]+)"?/);
       const filename = match ? match[1] : "serverinv-backup.sql";
-      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement("a");
-      a.href = url;
+      a.href = blobUrl;
       a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(blobUrl);
       return { filename };
     },
   });
@@ -91,9 +98,23 @@ export function useBackupDownload() {
 /** Upload .sql backup file to restore database. */
 export function useBackupRestore() {
   return useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async (params: {
+      file: File;
+      excludeUsers?: boolean;
+      mergeMode?: boolean;
+      conflictResolution?: 'keep-existing' | 'use-restored';
+    }) => {
       const form = new FormData();
-      form.append("backup", file);
+      form.append("backup", params.file);
+      if (params.excludeUsers) {
+        form.append("excludeUsers", "true");
+      }
+      if (params.mergeMode) {
+        form.append("mergeMode", "true");
+      }
+      if (params.conflictResolution) {
+        form.append("conflictResolution", params.conflictResolution);
+      }
       return api.post("/backup/restore", form, {
         headers: { "Content-Type": "multipart/form-data" },
       }).then((r) => r.data);

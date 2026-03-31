@@ -15,13 +15,19 @@ export class PgBackupService {
   /**
    * Generate a complete SQL backup of the database.
    *
+   * @param options - Backup options
+   * @param options.excludeUsers - If true, exclude users table from backup
    * @returns SQL dump as string
    */
-  async generateBackup(): Promise<string> {
+  async generateBackup(options: { excludeUsers?: boolean } = {}): Promise<string> {
     const client = await this.pool.connect();
     try {
       let sql = "-- ServerInv Database Backup\n";
-      sql += `-- Generated: ${new Date().toISOString()}\n\n`;
+      sql += `-- Generated: ${new Date().toISOString()}\n`;
+      if (options.excludeUsers) {
+        sql += "-- Users table excluded from this backup\n";
+      }
+      sql += "\n";
       sql += "BEGIN;\n\n";
 
       // Get all user tables (exclude system tables)
@@ -32,7 +38,13 @@ export class PgBackupService {
         ORDER BY tablename
       `);
 
-      const tables = tablesResult.rows.map((r) => r.tablename);
+      let tables = tablesResult.rows.map((r) => r.tablename);
+
+      // Exclude users table if requested
+      if (options.excludeUsers) {
+        tables = tables.filter(t => t !== 'users');
+        console.log("[PgBackupService] Excluding users table from backup");
+      }
 
       // Drop tables in reverse order to handle foreign key constraints
       sql += "-- Drop existing tables\n";
@@ -283,17 +295,33 @@ export class PgBackupService {
    * Restore database from SQL backup file.
    *
    * @param sqlContent - SQL dump content
+   * @param options - Restore options
+   * @param options.excludeUsers - If true, skip restoring users table
+   * @param options.mergeMode - If true, merge with existing data instead of dropping tables
+   * @param options.conflictResolution - How to handle duplicate keys: 'keep-existing' or 'use-restored'
    */
-  async restoreBackup(sqlContent: string): Promise<void> {
+  async restoreBackup(
+    sqlContent: string,
+    options: {
+      excludeUsers?: boolean;
+      mergeMode?: boolean;
+      conflictResolution?: 'keep-existing' | 'use-restored';
+    } = {}
+  ): Promise<void> {
     const client = await this.pool.connect();
     try {
-      // First, drop and recreate the public schema to ensure a clean restore
-      console.log("[PgBackupService] Dropping existing schema for clean restore...");
-      await client.query("DROP SCHEMA IF EXISTS public CASCADE");
-      await client.query("CREATE SCHEMA public");
-      await client.query("GRANT ALL ON SCHEMA public TO current_user");
-      await client.query("GRANT ALL ON SCHEMA public TO public");
-      console.log("[PgBackupService] Schema recreated successfully");
+      // Clean restore: drop and recreate schema (unless in merge mode)
+      if (!options.mergeMode) {
+        console.log("[PgBackupService] Dropping existing schema for clean restore...");
+        await client.query("DROP SCHEMA IF EXISTS public CASCADE");
+        await client.query("CREATE SCHEMA public");
+        await client.query("GRANT ALL ON SCHEMA public TO current_user");
+        await client.query("GRANT ALL ON SCHEMA public TO public");
+        console.log("[PgBackupService] Schema recreated successfully");
+      } else {
+        console.log("[PgBackupService] Merge mode: preserving existing tables");
+        console.log(`[PgBackupService] Conflict resolution: ${options.conflictResolution || 'keep-existing'}`);
+      }
 
       // Parse SQL into statements
       const statements = this.parseSQL(sqlContent);
@@ -304,25 +332,50 @@ export class PgBackupService {
       console.log("[PgBackupService] Started transaction");
 
       let executedCount = 0;
-      for (const statement of statements) {
-        if (statement.trim()) {
-          try {
-            await client.query(statement);
-            executedCount++;
-            if (executedCount % 100 === 0) {
-              console.log(`[PgBackupService] Executed ${executedCount} statements...`);
-            }
-          } catch (err: any) {
-            console.error("[PgBackupService] Failed to execute statement:");
-            console.error("Statement preview:", statement.substring(0, 200));
-            console.error("Error:", err.message);
-            throw err;
+      let skippedCount = 0;
+
+      for (let statement of statements) {
+        if (!statement.trim()) continue;
+
+        // Skip users table statements if excludeUsers is true
+        if (options.excludeUsers && this.isUsersTableStatement(statement)) {
+          skippedCount++;
+          continue;
+        }
+
+        // In merge mode, handle conflicts for INSERT statements
+        if (options.mergeMode && statement.trim().toUpperCase().startsWith('INSERT')) {
+          statement = this.convertInsertForMerge(statement, options.conflictResolution || 'keep-existing');
+        }
+
+        try {
+          await client.query(statement);
+          executedCount++;
+          if (executedCount % 100 === 0) {
+            console.log(`[PgBackupService] Executed ${executedCount} statements...`);
           }
+        } catch (err: any) {
+          // In merge mode, tolerate "already exists" errors
+          if (options.mergeMode && (
+            err.message.includes('already exists') ||
+            err.message.includes('duplicate key')
+          )) {
+            skippedCount++;
+            continue;
+          }
+
+          console.error("[PgBackupService] Failed to execute statement:");
+          console.error("Statement preview:", statement.substring(0, 200));
+          console.error("Error:", err.message);
+          throw err;
         }
       }
 
       await client.query("COMMIT");
       console.log(`[PgBackupService] Successfully committed ${executedCount} statements`);
+      if (skippedCount > 0) {
+        console.log(`[PgBackupService] Skipped ${skippedCount} statements (users excluded or conflicts)`);
+      }
     } catch (err: any) {
       console.error("[PgBackupService] Restore failed, rolling back transaction");
       await client.query("ROLLBACK");
@@ -331,6 +384,62 @@ export class PgBackupService {
     } finally {
       client.release();
     }
+  }
+
+  /**
+   * Check if a SQL statement operates on the users table.
+   */
+  private isUsersTableStatement(statement: string): boolean {
+    const upperStatement = statement.trim().toUpperCase();
+    return (
+      upperStatement.includes('TABLE "USERS"') ||
+      upperStatement.includes('TABLE USERS') ||
+      upperStatement.includes('INTO "USERS"') ||
+      upperStatement.includes('INTO USERS') ||
+      upperStatement.startsWith('CREATE TABLE "USERS"') ||
+      upperStatement.startsWith('CREATE TABLE USERS')
+    );
+  }
+
+  /**
+   * Convert INSERT statement to handle conflicts in merge mode.
+   * PostgreSQL uses ON CONFLICT clause.
+   */
+  private convertInsertForMerge(statement: string, resolution: 'keep-existing' | 'use-restored'): string {
+    // Extract table name to get primary key
+    const tableMatch = statement.match(/INSERT INTO ["']?(\w+)["']?/i);
+    if (!tableMatch) return statement;
+
+    const tableName = tableMatch[1];
+
+    if (resolution === 'keep-existing') {
+      // ON CONFLICT DO NOTHING - keeps existing row
+      if (!statement.includes('ON CONFLICT')) {
+        // Assume 'id' is the primary key (standard for all our tables)
+        return statement.replace(/;?\s*$/, ' ON CONFLICT (id) DO NOTHING;');
+      }
+    } else {
+      // ON CONFLICT DO UPDATE - replaces with restored row
+      // This is more complex as we need to update all columns
+      // For simplicity, we'll use DO UPDATE SET ... EXCLUDED
+      if (!statement.includes('ON CONFLICT')) {
+        // Extract column names from INSERT
+        const columnsMatch = statement.match(/\(([^)]+)\)\s+VALUES/i);
+        if (columnsMatch) {
+          const columns = columnsMatch[1].split(',').map(c => c.trim().replace(/['"]/g, ''));
+          const updateClauses = columns
+            .filter(col => col !== 'id') // Don't update primary key
+            .map(col => `"${col}" = EXCLUDED."${col}"`)
+            .join(', ');
+
+          if (updateClauses) {
+            return statement.replace(/;?\s*$/, ` ON CONFLICT (id) DO UPDATE SET ${updateClauses};`);
+          }
+        }
+      }
+    }
+
+    return statement;
   }
 
   /**

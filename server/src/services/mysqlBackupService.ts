@@ -15,20 +15,32 @@ export class MysqlBackupService {
   /**
    * Generate a complete SQL backup of the database.
    *
+   * @param options - Backup options
+   * @param options.excludeUsers - If true, exclude users table from backup
    * @returns SQL dump as string
    */
-  async generateBackup(): Promise<string> {
+  async generateBackup(options: { excludeUsers?: boolean } = {}): Promise<string> {
     const conn = await this.pool.getConnection();
 
     try {
       let sql = "-- ServerInv Database Backup\n";
-      sql += `-- Generated: ${new Date().toISOString()}\n\n`;
+      sql += `-- Generated: ${new Date().toISOString()}\n`;
+      if (options.excludeUsers) {
+        sql += "-- Users table excluded from this backup\n";
+      }
+      sql += "\n";
       sql += "SET FOREIGN_KEY_CHECKS=0;\n\n";
 
       // Get all tables
-      const [tables]: any = await conn.query(
+      let [tables]: any = await conn.query(
         "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() ORDER BY table_name"
       );
+
+      // Exclude users table if requested
+      if (options.excludeUsers) {
+        tables = tables.filter((t: any) => t.table_name !== 'users');
+        console.log("[MysqlBackupService] Excluding users table from backup");
+      }
 
       // Drop and create tables
       for (const { table_name } of tables) {
@@ -149,26 +161,42 @@ export class MysqlBackupService {
    * Restore database from SQL backup file.
    *
    * @param sqlContent - SQL dump content
+   * @param options - Restore options
+   * @param options.excludeUsers - If true, skip restoring users table
+   * @param options.mergeMode - If true, merge with existing data instead of dropping tables
+   * @param options.conflictResolution - How to handle duplicate keys: 'keep-existing' or 'use-restored'
    */
-  async restoreBackup(sqlContent: string): Promise<void> {
+  async restoreBackup(
+    sqlContent: string,
+    options: {
+      excludeUsers?: boolean;
+      mergeMode?: boolean;
+      conflictResolution?: 'keep-existing' | 'use-restored';
+    } = {}
+  ): Promise<void> {
     const conn = await this.pool.getConnection();
 
     try {
-      // First, drop all existing tables for clean restore
-      console.log("[MysqlBackupService] Dropping existing tables for clean restore...");
       await conn.query("SET FOREIGN_KEY_CHECKS=0");
 
-      const [tables]: any = await conn.query(
-        "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()"
-      );
+      // Clean restore: drop all existing tables (unless in merge mode)
+      if (!options.mergeMode) {
+        console.log("[MysqlBackupService] Dropping existing tables for clean restore...");
 
-      for (const { table_name } of tables) {
-        console.log(`[MysqlBackupService] Dropping table: ${table_name}`);
-        await conn.query(`DROP TABLE IF EXISTS \`${table_name}\``);
+        const [tables]: any = await conn.query(
+          "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()"
+        );
+
+        for (const { table_name } of tables) {
+          console.log(`[MysqlBackupService] Dropping table: ${table_name}`);
+          await conn.query(`DROP TABLE IF EXISTS \`${table_name}\``);
+        }
+
+        console.log(`[MysqlBackupService] Dropped ${tables.length} existing tables`);
+      } else {
+        console.log("[MysqlBackupService] Merge mode: preserving existing tables");
+        console.log(`[MysqlBackupService] Conflict resolution: ${options.conflictResolution || 'keep-existing'}`);
       }
-
-      await conn.query("SET FOREIGN_KEY_CHECKS=1");
-      console.log(`[MysqlBackupService] Dropped ${tables.length} existing tables`);
 
       // Parse SQL into statements
       const statements = this.parseSQL(sqlContent);
@@ -176,27 +204,86 @@ export class MysqlBackupService {
 
       // Execute all statements
       let executedCount = 0;
-      for (const statement of statements) {
-        if (statement.trim() && !statement.startsWith('--')) {
-          try {
-            await conn.query(statement);
-            executedCount++;
-            if (executedCount % 100 === 0) {
-              console.log(`[MysqlBackupService] Executed ${executedCount} statements...`);
-            }
-          } catch (err: any) {
-            console.error("[MysqlBackupService] Failed to execute statement:");
-            console.error("Statement preview:", statement.substring(0, 200));
-            console.error("Error:", err.message);
-            throw err;
+      let skippedCount = 0;
+
+      for (let statement of statements) {
+        if (!statement.trim() || statement.startsWith('--')) continue;
+
+        // Skip users table statements if excludeUsers is true
+        if (options.excludeUsers && this.isUsersTableStatement(statement)) {
+          skippedCount++;
+          continue;
+        }
+
+        // In merge mode, handle conflicts for INSERT statements
+        if (options.mergeMode && statement.trim().toUpperCase().startsWith('INSERT')) {
+          statement = this.convertInsertForMerge(statement, options.conflictResolution || 'keep-existing');
+        }
+
+        try {
+          await conn.query(statement);
+          executedCount++;
+          if (executedCount % 100 === 0) {
+            console.log(`[MysqlBackupService] Executed ${executedCount} statements...`);
           }
+        } catch (err: any) {
+          // In merge mode, tolerate "already exists" errors
+          if (options.mergeMode && (
+            err.message.includes('already exists') ||
+            err.message.includes('Duplicate entry')
+          )) {
+            skippedCount++;
+            continue;
+          }
+
+          console.error("[MysqlBackupService] Failed to execute statement:");
+          console.error("Statement preview:", statement.substring(0, 200));
+          console.error("Error:", err.message);
+          throw err;
         }
       }
 
+      await conn.query("SET FOREIGN_KEY_CHECKS=1");
       console.log(`[MysqlBackupService] Successfully executed ${executedCount} statements`);
+      if (skippedCount > 0) {
+        console.log(`[MysqlBackupService] Skipped ${skippedCount} statements (users excluded or conflicts)`);
+      }
     } finally {
       conn.release();
     }
+  }
+
+  /**
+   * Check if a SQL statement operates on the users table.
+   */
+  private isUsersTableStatement(statement: string): boolean {
+    const upperStatement = statement.trim().toUpperCase();
+    return (
+      upperStatement.includes('TABLE `USERS`') ||
+      upperStatement.includes('TABLE USERS') ||
+      upperStatement.includes('INTO `USERS`') ||
+      upperStatement.includes('INTO USERS') ||
+      upperStatement.startsWith('CREATE TABLE `USERS`') ||
+      upperStatement.startsWith('CREATE TABLE USERS')
+    );
+  }
+
+  /**
+   * Convert INSERT statement to handle conflicts in merge mode.
+   * MySQL uses INSERT IGNORE (keep existing) or REPLACE INTO (use restored).
+   */
+  private convertInsertForMerge(statement: string, resolution: 'keep-existing' | 'use-restored'): string {
+    if (resolution === 'keep-existing') {
+      // INSERT IGNORE - keeps existing row on duplicate key
+      if (!statement.toUpperCase().includes('IGNORE')) {
+        return statement.replace(/^INSERT/i, 'INSERT IGNORE');
+      }
+    } else {
+      // REPLACE INTO - replaces existing row
+      return statement.replace(/^INSERT INTO/i, 'REPLACE INTO');
+    }
+
+    return statement;
   }
 
   /**
