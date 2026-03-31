@@ -338,6 +338,18 @@ export class PgBackupService {
         // Convert COPY statements to INSERT for conflict resolution
         if (options.conflictResolution === 'use-restored') {
           console.log("[PgBackupService] Converting COPY statements to INSERT for conflict resolution");
+
+          // Debug: check what statements look like before conversion
+          const copyCount = statements.filter(s => s.trim().toUpperCase().startsWith('COPY ')).length;
+          console.log(`[PgBackupService] Before conversion: ${statements.length} statements, ${copyCount} COPY statements`);
+
+          // Show first COPY statement structure
+          const firstCopy = statements.find(s => s.trim().toUpperCase().startsWith('COPY '));
+          if (firstCopy) {
+            console.log(`[PgBackupService] First COPY statement (${firstCopy.length} chars):`);
+            console.log(firstCopy.substring(0, 500));
+          }
+
           statements = this.convertCopyToInsert(statements, options.conflictResolution);
 
           // Log first 3 converted INSERT statements for debugging
@@ -349,6 +361,16 @@ export class PgBackupService {
               sampleCount++;
               if (sampleCount >= 3) break;
             }
+          }
+
+          if (sampleCount === 0) {
+            console.log("[PgBackupService] WARNING: No INSERT statements found after conversion!");
+            // Show what we do have
+            const statementTypes = statements.slice(0, 10).map(s => {
+              const preview = s.trim().substring(0, 50);
+              return preview;
+            });
+            console.log("[PgBackupService] First 10 statement previews:", statementTypes);
           }
         }
 
