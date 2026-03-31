@@ -777,11 +777,22 @@ export class PgBackupService {
         continue;
       }
 
-      // Handle psql meta-commands and backslash commands (only outside strings)
-      // These are lines starting with \ and are not valid SQL for our parser
-      // Examples: \restrict, \unrestrict, \dt, \c, etc.
+      // Handle COPY data terminator: \. on its own line
       if (!inString && char === "\\" && (i === 0 || sql[i - 1] === "\n" || sql[i - 1] === "\r")) {
-        // Skip to end of line
+        // Check if this is \. (COPY terminator)
+        if (nextChar === ".") {
+          current += "\\.";
+          i++; // Skip the dot
+          // Treat this as statement terminator for COPY blocks
+          statements.push(current.trim());
+          current = "";
+          // Skip to end of line
+          while (i < sql.length && sql[i] !== "\n") {
+            i++;
+          }
+          continue;
+        }
+        // Other backslash commands - skip to end of line
         while (i < sql.length && sql[i] !== "\n") {
           i++;
         }
