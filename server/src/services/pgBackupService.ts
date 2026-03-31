@@ -571,67 +571,48 @@ export class PgBackupService {
           if (i < statements.length) {
             const dataBlob = statements[i];
 
-            // Split the data blob by newlines to get individual rows
-            const dataRows = dataBlob.split('\n');
+            // Parse COPY data properly: fields are tab-separated, rows are newline-separated
+            // BUT fields can contain newlines! We need to count tabs to identify row boundaries.
+            const expectedFieldCount = columns.length;
+            const lines = dataBlob.split('\n');
+            let currentRow: string[] = [];
+            let fieldBuffer = '';
+            let tabCount = 0;
 
-            for (const dataLine of dataRows) {
-              const trimmedLine = dataLine.trim();
-
-              // End of COPY data or empty line
-              if (trimmedLine === '\\.' || trimmedLine === '') {
+            for (const line of lines) {
+              if (line.trim() === '\\.' || line.trim() === '') {
+                // End marker or empty line
+                if (currentRow.length > 0) {
+                  // Flush any pending row
+                  this.createInsertFromCopyRow(currentRow, columns, tableName, resolution, newStatements);
+                  currentRow = [];
+                }
                 continue;
               }
 
-              // Convert data line to INSERT statement
-              // Parse tab-separated values
-              const values = trimmedLine.split('\t').map(v => {
-                if (v === '\\N') return 'NULL'; // PostgreSQL null marker
-                // Escape single quotes and backslashes
-                const escaped = v.replace(/\\/g, '\\\\').replace(/'/g, "''");
-                return `'${escaped}'`;
-              });
+              // Count tabs in this line to determine if it's a new row or continuation
+              const tabsInLine = (line.match(/\t/g) || []).length;
 
-              if (values.length === columns.length) {
-                // Quote all column names to handle reserved words and special chars
-                const quotedColumns = columns.map(col => {
-                  const cleaned = col.trim().replace(/^["']|["']$/g, ''); // Remove existing quotes
-                  return `"${cleaned}"`;
-                });
-                const columnList = quotedColumns.join(', ');
-                const valueList = values.join(', ');
-
-                // Handle table name with schema (schema.table)
-                // Don't quote the whole thing if it contains a dot (schema separator)
-                let quotedTableName: string;
-                if (tableName.includes('.')) {
-                  // Has schema: use as-is (schema.table)
-                  quotedTableName = tableName;
+              if (tabCount === 0 && tabsInLine >= expectedFieldCount - 1) {
+                // This line has enough tabs to be a complete row
+                const values = line.split('\t');
+                this.createInsertFromCopyRow(values, columns, tableName, resolution, newStatements);
+              } else {
+                // Multi-line row: accumulate until we have all fields
+                if (tabCount + tabsInLine >= expectedFieldCount - 1) {
+                  // This completes the row
+                  fieldBuffer += (fieldBuffer ? '\n' : '') + line;
+                  const values = fieldBuffer.split('\t');
+                  this.createInsertFromCopyRow(values, columns, tableName, resolution, newStatements);
+                  // Reset for next row
+                  fieldBuffer = '';
+                  tabCount = 0;
+                  currentRow = [];
                 } else {
-                  // No schema: quote to handle reserved words
-                  quotedTableName = `"${tableName.replace(/^["']|["']$/g, '')}"`;
+                  // Still accumulating
+                  fieldBuffer += (fieldBuffer ? '\n' : '') + line;
+                  tabCount += tabsInLine;
                 }
-                let insertStmt = `INSERT INTO ${quotedTableName} (${columnList}) VALUES (${valueList})`;
-
-                // Add ON CONFLICT clause
-                if (resolution === 'use-restored') {
-                  // Don't update the id column (primary key)
-                  const updateClauses = quotedColumns
-                    .filter((col, idx) => columns[idx].toLowerCase().trim() !== 'id')
-                    .map(col => `${col} = EXCLUDED.${col}`)
-                    .join(', ');
-
-                  if (updateClauses) {
-                    insertStmt += ` ON CONFLICT (id) DO UPDATE SET ${updateClauses}`;
-                  } else {
-                    // No columns to update (only has id column?)
-                    insertStmt += ` ON CONFLICT (id) DO NOTHING`;
-                  }
-                } else {
-                  insertStmt += ` ON CONFLICT (id) DO NOTHING`;
-                }
-
-                insertStmt += ';';
-                newStatements.push(insertStmt);
               }
             }
           }
@@ -648,6 +629,68 @@ export class PgBackupService {
 
     console.log(`[PgBackupService] Converted COPY to INSERT: ${statements.length} -> ${newStatements.length} statements`);
     return newStatements;
+  }
+
+  /**
+   * Create an INSERT statement from a COPY data row.
+   */
+  private createInsertFromCopyRow(
+    values: string[],
+    columns: string[],
+    tableName: string,
+    resolution: 'keep-existing' | 'use-restored',
+    newStatements: string[]
+  ): void {
+    if (values.length === columns.length) {
+      // Convert values
+      const convertedValues = values.map(v => {
+        if (v === '\\N') return 'NULL'; // PostgreSQL null marker
+        // Escape single quotes and backslashes
+        const escaped = v.replace(/\\/g, '\\\\').replace(/'/g, "''");
+        return `'${escaped}'`;
+      });
+
+      // Quote all column names to handle reserved words and special chars
+      const quotedColumns = columns.map(col => {
+        const cleaned = col.trim().replace(/^["']|["']$/g, ''); // Remove existing quotes
+        return `"${cleaned}"`;
+      });
+      const columnList = quotedColumns.join(', ');
+      const valueList = convertedValues.join(', ');
+
+      // Handle table name with schema (schema.table)
+      // Don't quote the whole thing if it contains a dot (schema separator)
+      let quotedTableName: string;
+      if (tableName.includes('.')) {
+        // Has schema: use as-is (schema.table)
+        quotedTableName = tableName;
+      } else {
+        // No schema: quote to handle reserved words
+        quotedTableName = `"${tableName.replace(/^["']|["']$/g, '')}"`;
+      }
+      let insertStmt = `INSERT INTO ${quotedTableName} (${columnList}) VALUES (${valueList})`;
+
+      // Add ON CONFLICT clause
+      if (resolution === 'use-restored') {
+        // Don't update the id column (primary key)
+        const updateClauses = quotedColumns
+          .filter((col, idx) => columns[idx].toLowerCase().trim() !== 'id')
+          .map(col => `${col} = EXCLUDED.${col}`)
+          .join(', ');
+
+        if (updateClauses) {
+          insertStmt += ` ON CONFLICT (id) DO UPDATE SET ${updateClauses}`;
+        } else {
+          // No columns to update (only has id column?)
+          insertStmt += ` ON CONFLICT (id) DO NOTHING`;
+        }
+      } else {
+        insertStmt += ` ON CONFLICT (id) DO NOTHING`;
+      }
+
+      insertStmt += ';';
+      newStatements.push(insertStmt);
+    }
   }
 
   /**
