@@ -344,10 +344,18 @@ export class PgBackupService {
           console.log(`[PgBackupService] Before conversion: ${statements.length} statements, ${copyCount} COPY statements`);
 
           // Show first COPY statement structure
-          const firstCopy = statements.find(s => s.trim().toUpperCase().startsWith('COPY '));
-          if (firstCopy) {
-            console.log(`[PgBackupService] First COPY statement (${firstCopy.length} chars):`);
-            console.log(firstCopy.substring(0, 500));
+          const firstCopyIndex = statements.findIndex(s => s.trim().toUpperCase().startsWith('COPY '));
+          if (firstCopyIndex >= 0) {
+            const firstCopy = statements[firstCopyIndex];
+            console.log(`[PgBackupService] First COPY statement at index ${firstCopyIndex} (${firstCopy.length} chars):`);
+            console.log(firstCopy);
+
+            // Show the next few statements after the COPY to see if data is there
+            console.log(`[PgBackupService] Next 3 statements after COPY:`);
+            for (let i = 1; i <= 3 && firstCopyIndex + i < statements.length; i++) {
+              const nextStmt = statements[firstCopyIndex + i];
+              console.log(`[PgBackupService]   [${i}] (${nextStmt.length} chars): ${nextStmt.substring(0, 200)}`);
+            }
           }
 
           statements = this.convertCopyToInsert(statements, options.conflictResolution);
