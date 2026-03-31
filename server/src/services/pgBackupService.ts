@@ -587,6 +587,7 @@ export class PgBackupService {
             let fieldBuffer = '';
             let tabCount = 0;
 
+            let rowsProcessed = 0;
             for (const line of lines) {
               if (line.trim() === '\\.' || line.trim() === '') {
                 // End marker or empty line
@@ -600,6 +601,13 @@ export class PgBackupService {
 
               // Count tabs in this line to determine if it's a new row or continuation
               const tabsInLine = (line.match(/\t/g) || []).length;
+
+              if (tableName.includes('servers')) {
+                if (rowsProcessed < 2) {
+                  console.log(`[PgBackupService]   Row ${rowsProcessed}: ${tabsInLine} tabs, line length: ${line.length}`);
+                }
+                rowsProcessed++;
+              }
 
               if (tabCount === 0 && tabsInLine >= expectedFieldCount - 1) {
                 // This line has enough tabs to be a complete row
@@ -622,6 +630,12 @@ export class PgBackupService {
                   tabCount += tabsInLine;
                 }
               }
+            }
+
+            if (tableName.includes('servers')) {
+              const serversInserts = newStatements.filter(s => s.includes('INSERT INTO public.servers')).length;
+              console.log(`[PgBackupService]   Total rows processed: ${rowsProcessed}`);
+              console.log(`[PgBackupService]   INSERT statements created: ${serversInserts}`);
             }
           }
 
