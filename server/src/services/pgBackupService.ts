@@ -327,66 +327,110 @@ export class PgBackupService {
       const statements = this.parseSQL(sqlContent);
       console.log(`[PgBackupService] Parsed ${statements.length} SQL statements from backup`);
 
-      // Execute all statements in a transaction
-      await client.query("BEGIN");
-      console.log("[PgBackupService] Started transaction");
-
       let executedCount = 0;
       let skippedCount = 0;
 
-      for (let statement of statements) {
-        if (!statement.trim()) continue;
+      // In merge mode, execute statements individually (no transaction)
+      // This allows us to tolerate errors without aborting everything
+      if (options.mergeMode) {
+        console.log("[PgBackupService] Executing statements individually (merge mode)");
 
-        // Skip users table statements if excludeUsers is true
-        if (options.excludeUsers && this.isUsersTableStatement(statement)) {
-          skippedCount++;
-          continue;
-        }
+        for (let statement of statements) {
+          if (!statement.trim()) continue;
 
-        // Skip ownership statements (ALTER ... OWNER TO ...) to avoid role conflicts
-        if (this.isOwnershipStatement(statement)) {
-          skippedCount++;
-          continue;
-        }
-
-        // In merge mode, handle conflicts for INSERT statements
-        if (options.mergeMode && statement.trim().toUpperCase().startsWith('INSERT')) {
-          statement = this.convertInsertForMerge(statement, options.conflictResolution || 'keep-existing');
-        }
-
-        try {
-          await client.query(statement);
-          executedCount++;
-          if (executedCount % 100 === 0) {
-            console.log(`[PgBackupService] Executed ${executedCount} statements...`);
-          }
-        } catch (err: any) {
-          // In merge mode, tolerate "already exists" errors
-          if (options.mergeMode && (
-            err.message.includes('already exists') ||
-            err.message.includes('duplicate key') ||
-            err.message.includes('does not exist') // Skip missing table/schema errors
-          )) {
+          // Skip users table statements if excludeUsers is true
+          if (options.excludeUsers && this.isUsersTableStatement(statement)) {
             skippedCount++;
             continue;
           }
 
-          console.error("[PgBackupService] Failed to execute statement:");
-          console.error("Statement preview:", statement.substring(0, 200));
-          console.error("Error:", err.message);
-          throw err;
+          // Skip ownership statements
+          if (this.isOwnershipStatement(statement)) {
+            skippedCount++;
+            continue;
+          }
+
+          // Handle conflicts for INSERT statements
+          if (statement.trim().toUpperCase().startsWith('INSERT')) {
+            statement = this.convertInsertForMerge(statement, options.conflictResolution || 'keep-existing');
+          }
+
+          try {
+            await client.query(statement);
+            executedCount++;
+            if (executedCount % 100 === 0) {
+              console.log(`[PgBackupService] Executed ${executedCount} statements...`);
+            }
+          } catch (err: any) {
+            // Tolerate specific errors in merge mode
+            if (
+              err.message.includes('already exists') ||
+              err.message.includes('duplicate key') ||
+              err.message.includes('does not exist')
+            ) {
+              skippedCount++;
+              continue;
+            }
+
+            console.error("[PgBackupService] Failed to execute statement:");
+            console.error("Statement preview:", statement.substring(0, 200));
+            console.error("Error:", err.message);
+            // Don't throw - continue with next statement
+            skippedCount++;
+          }
+        }
+
+        console.log(`[PgBackupService] Successfully executed ${executedCount} statements`);
+        if (skippedCount > 0) {
+          console.log(`[PgBackupService] Skipped ${skippedCount} statements (conflicts or errors)`);
+        }
+      } else {
+        // Clean restore mode: use transaction for atomicity
+        await client.query("BEGIN");
+        console.log("[PgBackupService] Started transaction");
+
+        for (let statement of statements) {
+          if (!statement.trim()) continue;
+
+          // Skip users table statements if excludeUsers is true
+          if (options.excludeUsers && this.isUsersTableStatement(statement)) {
+            skippedCount++;
+            continue;
+          }
+
+          // Skip ownership statements
+          if (this.isOwnershipStatement(statement)) {
+            skippedCount++;
+            continue;
+          }
+
+          try {
+            await client.query(statement);
+            executedCount++;
+            if (executedCount % 100 === 0) {
+              console.log(`[PgBackupService] Executed ${executedCount} statements...`);
+            }
+          } catch (err: any) {
+            console.error("[PgBackupService] Failed to execute statement:");
+            console.error("Statement preview:", statement.substring(0, 200));
+            console.error("Error:", err.message);
+            throw err;
+          }
+        }
+
+        await client.query("COMMIT");
+        console.log(`[PgBackupService] Successfully committed ${executedCount} statements`);
+        if (skippedCount > 0) {
+          console.log(`[PgBackupService] Skipped ${skippedCount} statements (users excluded)`);
         }
       }
-
-      await client.query("COMMIT");
-      console.log(`[PgBackupService] Successfully committed ${executedCount} statements`);
-      if (skippedCount > 0) {
-        console.log(`[PgBackupService] Skipped ${skippedCount} statements (users excluded or conflicts)`);
-      }
     } catch (err: any) {
-      console.error("[PgBackupService] Restore failed, rolling back transaction");
-      await client.query("ROLLBACK");
-      console.error("[PgBackupService] Rollback completed");
+      console.error("[PgBackupService] Restore failed");
+      if (!options.mergeMode) {
+        console.error("[PgBackupService] Rolling back transaction");
+        await client.query("ROLLBACK");
+        console.error("[PgBackupService] Rollback completed");
+      }
       throw err;
     } finally {
       client.release();
