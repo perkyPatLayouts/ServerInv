@@ -373,7 +373,9 @@ export class PgBackupService {
             // Tolerate specific errors in merge mode
             if (
               err.message.includes('already exists') ||
-              err.message.includes('does not exist')
+              err.message.includes('does not exist') ||
+              err.message.includes('multiple primary keys') ||
+              err.message.includes('multiple') // catches "multiple X for table Y are not allowed"
             ) {
               skippedCount++;
               continue;
@@ -389,10 +391,10 @@ export class PgBackupService {
               continue;
             }
 
-            console.error("[PgBackupService] Failed to execute statement:");
+            // Log unhandled errors but don't fail the restore
+            console.error("[PgBackupService] Skipping statement due to error:");
             console.error("Statement preview:", statement.substring(0, 200));
             console.error("Error:", err.message);
-            // Don't throw - continue with next statement
             skippedCount++;
           }
         }
