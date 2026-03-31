@@ -44,7 +44,8 @@
       "Bash(npm run dev:server:*)",
       "Bash(curl:*)",
       "Bash(npx drizzle-kit generate:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(/Volumes/908SSD/Projects/AI/ServerInv/docs/deployment-guide.md:*)"
     ]
   }
 }

@@ -215,6 +215,12 @@ export class MysqlBackupService {
           continue;
         }
 
+        // Skip ownership/grant statements to avoid user/role conflicts
+        if (this.isOwnershipStatement(statement)) {
+          skippedCount++;
+          continue;
+        }
+
         // In merge mode, handle conflicts for INSERT statements
         if (options.mergeMode && statement.trim().toUpperCase().startsWith('INSERT')) {
           statement = this.convertInsertForMerge(statement, options.conflictResolution || 'keep-existing');
@@ -230,7 +236,8 @@ export class MysqlBackupService {
           // In merge mode, tolerate "already exists" errors
           if (options.mergeMode && (
             err.message.includes('already exists') ||
-            err.message.includes('Duplicate entry')
+            err.message.includes('Duplicate entry') ||
+            err.message.includes("doesn't exist") // Skip missing table errors
           )) {
             skippedCount++;
             continue;
@@ -265,6 +272,20 @@ export class MysqlBackupService {
       upperStatement.includes('INTO USERS') ||
       upperStatement.startsWith('CREATE TABLE `USERS`') ||
       upperStatement.startsWith('CREATE TABLE USERS')
+    );
+  }
+
+  /**
+   * Check if a SQL statement is an ownership/grant statement.
+   * These should be skipped to avoid user/role conflicts between environments.
+   */
+  private isOwnershipStatement(statement: string): boolean {
+    const upperStatement = statement.trim().toUpperCase();
+    return (
+      upperStatement.startsWith('GRANT') ||
+      upperStatement.startsWith('REVOKE') ||
+      upperStatement.startsWith('CREATE USER') ||
+      upperStatement.startsWith('ALTER USER')
     );
   }
 

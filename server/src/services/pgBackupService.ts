@@ -343,6 +343,12 @@ export class PgBackupService {
           continue;
         }
 
+        // Skip ownership statements (ALTER ... OWNER TO ...) to avoid role conflicts
+        if (this.isOwnershipStatement(statement)) {
+          skippedCount++;
+          continue;
+        }
+
         // In merge mode, handle conflicts for INSERT statements
         if (options.mergeMode && statement.trim().toUpperCase().startsWith('INSERT')) {
           statement = this.convertInsertForMerge(statement, options.conflictResolution || 'keep-existing');
@@ -358,7 +364,8 @@ export class PgBackupService {
           // In merge mode, tolerate "already exists" errors
           if (options.mergeMode && (
             err.message.includes('already exists') ||
-            err.message.includes('duplicate key')
+            err.message.includes('duplicate key') ||
+            err.message.includes('does not exist') // Skip missing table/schema errors
           )) {
             skippedCount++;
             continue;
@@ -398,6 +405,21 @@ export class PgBackupService {
       upperStatement.includes('INTO USERS') ||
       upperStatement.startsWith('CREATE TABLE "USERS"') ||
       upperStatement.startsWith('CREATE TABLE USERS')
+    );
+  }
+
+  /**
+   * Check if a SQL statement is an ownership/role statement.
+   * These should be skipped to avoid role conflicts between environments.
+   */
+  private isOwnershipStatement(statement: string): boolean {
+    const upperStatement = statement.trim().toUpperCase();
+    return (
+      upperStatement.includes('OWNER TO') ||
+      upperStatement.startsWith('ALTER SCHEMA') ||
+      upperStatement.startsWith('CREATE ROLE') ||
+      upperStatement.startsWith('GRANT') ||
+      upperStatement.startsWith('REVOKE')
     );
   }
 
