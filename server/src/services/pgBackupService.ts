@@ -352,7 +352,15 @@ export class PgBackupService {
 
           // Handle conflicts for INSERT statements
           if (statement.trim().toUpperCase().startsWith('INSERT')) {
+            const originalStatement = statement;
             statement = this.convertInsertForMerge(statement, options.conflictResolution || 'keep-existing');
+
+            // Debug: log first converted statement to verify conversion works
+            if (executedCount === 0 && statement !== originalStatement) {
+              console.log(`[PgBackupService] Example conflict handling (${options.conflictResolution}):`);
+              console.log(`[PgBackupService] Original: ${originalStatement.substring(0, 100)}...`);
+              console.log(`[PgBackupService] Converted: ${statement.substring(0, 150)}...`);
+            }
           }
 
           try {
@@ -365,9 +373,18 @@ export class PgBackupService {
             // Tolerate specific errors in merge mode
             if (
               err.message.includes('already exists') ||
-              err.message.includes('duplicate key') ||
               err.message.includes('does not exist')
             ) {
+              skippedCount++;
+              continue;
+            }
+
+            // For duplicate key errors, log more details to debug conflict resolution
+            if (err.message.includes('duplicate key')) {
+              console.error("[PgBackupService] Duplicate key error (conflict resolution may not be working):");
+              console.error("Statement preview:", statement.substring(0, 250));
+              console.error("Error:", err.message);
+              console.error("Expected: ON CONFLICT clause should prevent this error");
               skippedCount++;
               continue;
             }
