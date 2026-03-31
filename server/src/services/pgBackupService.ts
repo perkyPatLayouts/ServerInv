@@ -587,6 +587,12 @@ export class PgBackupService {
             let fieldBuffer = '';
             let tabCount = 0;
 
+            if (tableName.includes('servers')) {
+              console.log(`[PgBackupService]   Lines after split: ${lines.length}`);
+              console.log(`[PgBackupService]   Line 0 length: ${lines[0]?.length}`);
+              console.log(`[PgBackupService]   Line 1 length: ${lines[1]?.length}`);
+            }
+
             let rowsProcessed = 0;
             for (const line of lines) {
               if (line.trim() === '\\.' || line.trim() === '') {
