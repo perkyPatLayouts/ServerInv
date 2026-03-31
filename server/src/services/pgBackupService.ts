@@ -600,9 +600,17 @@ export class PgBackupService {
                 const columnList = quotedColumns.join(', ');
                 const valueList = values.join(', ');
 
-                // Quote table name
-                const quotedTableName = tableName.replace(/^["']|["']$/g, '');
-                let insertStmt = `INSERT INTO "${quotedTableName}" (${columnList}) VALUES (${valueList})`;
+                // Handle table name with schema (schema.table)
+                // Don't quote the whole thing if it contains a dot (schema separator)
+                let quotedTableName: string;
+                if (tableName.includes('.')) {
+                  // Has schema: use as-is (schema.table)
+                  quotedTableName = tableName;
+                } else {
+                  // No schema: quote to handle reserved words
+                  quotedTableName = `"${tableName.replace(/^["']|["']$/g, '')}"`;
+                }
+                let insertStmt = `INSERT INTO ${quotedTableName} (${columnList}) VALUES (${valueList})`;
 
                 // Add ON CONFLICT clause
                 if (resolution === 'use-restored') {
