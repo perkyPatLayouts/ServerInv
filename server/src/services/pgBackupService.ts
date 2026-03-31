@@ -690,6 +690,11 @@ export class PgBackupService {
 
       insertStmt += ';';
       newStatements.push(insertStmt);
+
+      // Debug: log first servers INSERT statement
+      if (tableName.includes('servers') && newStatements.length <= 100) {
+        console.log(`[PgBackupService] FULL servers INSERT: ${insertStmt}`);
+      }
     }
   }
 
