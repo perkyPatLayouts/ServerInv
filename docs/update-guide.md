@@ -54,7 +54,10 @@ The script will:
 
 If you prefer to update manually:
 
+**Important:** The variables shown below (`APP_USER`, `APP_DIR`, `SERVICE_NAME`) are **shell variables** that you type directly into your terminal session, not file edits. They're temporary variables used only for that SSH session to make the subsequent commands easier to adapt for different installations. Set them once at the beginning, then copy/paste the commands that follow.
+
 ```bash
+# Set these shell variables in your terminal (not in a file)
 # Replace 'serverinv' with your custom username if applicable
 APP_USER="serverinv"  # or serverinv-prod, serverinv-staging, etc.
 APP_DIR="/opt/${APP_USER}"
@@ -93,7 +96,13 @@ sudo systemctl start ${SERVICE_NAME}
 sudo systemctl status ${SERVICE_NAME}
 ```
 
-**For default installation** (`serverinv`), the commands simplify to:
+**Why use variables?** The variable approach lets you set your installation name once at the top, then copy/paste all subsequent commands without modification. This is especially useful when managing multiple ServerInv installations on the same server.
+
+**Note:** These variables only exist in your current terminal session. If you disconnect and reconnect, you'll need to set them again. Alternatively, use the automated `deploy/update.sh` script which handles all of this automatically.
+
+**Examples for different installations:**
+
+**Default installation** (`serverinv`):
 ```bash
 sudo systemctl stop serverinv-serverinv
 cd /opt/serverinv
@@ -102,6 +111,23 @@ sudo -u serverinv npm install
 cd /opt/serverinv/client && sudo -u serverinv npm run build
 cd /opt/serverinv/server && sudo -u serverinv npx tsx src/db/migrate.ts
 sudo systemctl start serverinv-serverinv
+```
+
+**Custom installation** (e.g., `serverinv-prod`):
+```bash
+# Set variables first
+APP_USER="serverinv-prod"
+APP_DIR="/opt/serverinv-prod"
+SERVICE_NAME="serverinv-serverinv-prod"
+
+# Then run the update commands
+sudo systemctl stop ${SERVICE_NAME}
+cd ${APP_DIR}
+sudo -u ${APP_USER} git pull
+sudo -u ${APP_USER} npm install
+cd ${APP_DIR}/client && sudo -u ${APP_USER} npm run build
+cd ${APP_DIR}/server && sudo -u ${APP_USER} npx tsx src/db/migrate.ts
+sudo systemctl start ${SERVICE_NAME}
 ```
 
 ---
