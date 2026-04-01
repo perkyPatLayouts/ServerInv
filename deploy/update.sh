@@ -208,12 +208,13 @@ fi
 # Optional: Update SMTP configuration
 echo ""
 echo "==> SMTP Configuration"
+echo ""
+echo "Current SMTP configuration:"
+grep -E "SMTP_HOST|SMTP_PORT|SMTP_USER|SMTP_FROM" "$APP_DIR/server/.env" || echo "  (not configured)"
+echo ""
 read -p "Do you want to update SMTP settings? (y/N): " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-  echo ""
-  echo "Current SMTP configuration:"
-  grep -E "SMTP_HOST|SMTP_PORT|SMTP_USER|SMTP_FROM" "$APP_DIR/server/.env" || echo "  (not configured)"
   echo ""
   echo "Configure SMTP for password reset emails."
   read -p "SMTP server hostname (e.g., smtp.gmail.com): " smtp_host
