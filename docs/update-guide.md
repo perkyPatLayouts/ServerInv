@@ -41,12 +41,17 @@ The script will:
 6. Rebuild the frontend
 7. Run database migrations
 8. **Optionally prompt to create/update admin credentials** (if login was lost)
-9. **Optionally update ALLOWED_ORIGINS** (manual override only - normally auto-set from APP_URL)
-10. **Optionally update APP_URL** (automatically updates ALLOWED_ORIGINS to both http and https)
-11. **Optionally update SMTP settings** (for email functionality)
+9. **Optionally update APP_URL** (shows current value, then prompts for update - automatically sets ALLOWED_ORIGINS to both http and https)
+10. **Optionally update ALLOWED_ORIGINS** (shows current derived values, then allows manual override if additional domains are needed)
+11. **Optionally update SMTP settings** (shows current configuration, then prompts for updates if email functionality needs changes)
 12. Restart the service and show status
 
-**Note:** When you update APP_URL, ALLOWED_ORIGINS is automatically set to include both `http://domain` and `https://domain`. You only need to manually update ALLOWED_ORIGINS if you need additional domains beyond your main domain.
+**Note:** The configuration flow is designed to be intuitive:
+- **APP_URL is configured first** - This is your main application URL
+- **CORS origins are shown next** - Automatically derived from APP_URL (both http and https versions)
+- **SMTP settings are shown last** - Current configuration is displayed before prompting for changes
+
+When you update APP_URL, ALLOWED_ORIGINS is automatically set to include both `http://domain` and `https://domain`. You only need to manually override ALLOWED_ORIGINS if you need additional domains beyond your main domain.
 
 **Automatic Conflict Handling:** The update script now automatically cleans build artifacts and stashes local changes before pulling, preventing common git conflicts. Any stashed changes are preserved and can be recovered using `git stash list` and `git stash pop` if needed.
 

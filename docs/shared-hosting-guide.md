@@ -256,7 +256,12 @@ bash deploy/setup-shared.sh
 
 The script will:
 - Detect your control panel (cPanel, DirectAdmin, or VirtualMin GPL)
-- Prompt for configuration (domain, database credentials)
+- Prompt for configuration:
+  - Domain name
+  - Database credentials
+  - Application URL (with automatic CORS derivation)
+  - CORS origins (shows derived values, allows additional domains)
+  - SMTP settings (optional, for password reset emails)
 - Copy .git directory if present (for version tracking and updates)
 - Install dependencies
 - Build the application

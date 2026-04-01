@@ -149,6 +149,9 @@ The script will auto-detect VirtualMin and provide VirtualMin-specific instructi
 - **Database username**: Your database username
 - **Database password**: Your database password
 - **App directory**: Leave default (`~/serverinv`) or customize
+- **Application URL**: Full URL (defaults to https://yourdomain, used for password reset and CORS)
+- **CORS origins**: Shows derived values, optionally add additional allowed domains
+- **SMTP configuration**: Optional email settings for password reset functionality
 
 ### Step 2: Start Node.js Application
 

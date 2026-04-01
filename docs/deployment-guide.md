@@ -61,6 +61,9 @@ The script will prompt you for:
 1. **Domain name** - The domain where ServerInv will be accessible (e.g., `serverinv.example.com`)
 2. **Web server choice** - Nginx or Apache (detects existing installations and warns about conflicts)
 3. **Confirmation** - If existing configurations might be replaced
+4. **Application URL** - The full URL for your application (defaults to https://yourdomain, used for password reset emails and CORS)
+5. **CORS origins** - Shows automatically derived values from APP_URL, optionally add additional allowed domains
+6. **SMTP configuration** - Optional email settings for password reset functionality
 
 ### What the Script Does
 
@@ -69,12 +72,13 @@ The script will prompt you for:
 3. Creates a `serverinv` system user
 4. Creates the PostgreSQL database with a random password
 5. Copies the app to `/opt/serverinv`
-6. Generates `.env` with database URL and JWT secret
-7. Installs dependencies and builds the frontend
-8. Runs database migrations and seed default data
-9. Configures systemd service for auto-start
-10. Configures chosen web server (Nginx or Apache) as reverse proxy
-11. Obtains SSL certificate via Let's Encrypt
+6. Prompts for APP_URL, CORS origins, and SMTP configuration
+7. Generates `.env` with database URL, JWT secret, and configuration settings
+8. Installs dependencies and builds the frontend
+9. Runs database migrations and seed default data
+10. Configures systemd service for auto-start
+11. Configures chosen web server (Nginx or Apache) as reverse proxy
+12. Obtains SSL certificate via Let's Encrypt
 
 ### Multiple Sites Support
 
@@ -455,8 +459,9 @@ sudo bash deploy/update.sh
 
 The update script handles dependencies, migrations, frontend rebuild, and optionally allows you to:
 - Reset admin credentials
-- Update APP_URL (automatically sets CORS)
-- Configure SMTP settings
+- Update APP_URL (shows current value, automatically sets CORS to both http and https)
+- Update CORS origins (shows current derived values, allows override for additional domains)
+- Update SMTP settings (shows current configuration before prompting for changes)
 
 ---
 
