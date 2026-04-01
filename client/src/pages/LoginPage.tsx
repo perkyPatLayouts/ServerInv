@@ -28,7 +28,12 @@ export default function LoginPage() {
     try {
       const { data } = await api.post("/auth/login", { username, password });
       setAuth(data.token, data.user);
-      navigate("/");
+      // Check if password change is required
+      if (data.user.mustChangePassword) {
+        navigate("/change-password");
+      } else {
+        navigate("/");
+      }
     } catch {
       setError("Invalid credentials");
     } finally {

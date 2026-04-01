@@ -5,6 +5,7 @@ import { db } from "../db/index.js";
 import { users } from "../db/schema/index.js";
 import { comparePassword } from "../utils/password.js";
 import { signToken } from "../utils/jwt.js";
+import { generateCsrfToken } from "../utils/csrf.js";
 import { validate } from "../middleware/validate.js";
 import { authenticate } from "../middleware/auth.js";
 
@@ -28,8 +29,31 @@ router.post("/login", validate(loginSchema), async (req: Request, res: Response)
     res.status(401).json({ error: "Invalid credentials" });
     return;
   }
-  const token = signToken({ userId: user.id, role: user.role });
-  res.json({ token, user: { id: user.id, username: user.username, role: user.role } });
+  const token = signToken({
+    userId: user.id,
+    role: user.role,
+    mustChangePassword: user.mustChangePassword
+  });
+
+  // Generate and set CSRF token in cookie
+  const csrfToken = generateCsrfToken();
+  res.cookie('csrf-token', csrfToken, {
+    httpOnly: false, // Client needs to read this
+    secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+    sameSite: 'strict',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours (same as JWT)
+  });
+
+  res.json({
+    token,
+    csrfToken, // Also send in response for initial client setup
+    user: {
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      mustChangePassword: user.mustChangePassword
+    }
+  });
 });
 
 /** GET /api/auth/me */
@@ -40,6 +64,18 @@ router.get("/me", authenticate, async (req: Request, res: Response) => {
     return;
   }
   res.json(user);
+});
+
+/** GET /api/auth/csrf-token - Generate and return a fresh CSRF token */
+router.get("/csrf-token", authenticate, (req: Request, res: Response) => {
+  const csrfToken = generateCsrfToken();
+  res.cookie('csrf-token', csrfToken, {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 24 * 60 * 60 * 1000
+  });
+  res.json({ csrfToken });
 });
 
 export default router;

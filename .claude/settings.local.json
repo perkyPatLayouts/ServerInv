@@ -46,7 +46,8 @@
       "Bash(npx drizzle-kit generate:*)",
       "Bash(git pull:*)",
       "Bash(/Volumes/908SSD/Projects/AI/ServerInv/docs/deployment-guide.md:*)",
-      "Bash(~/serverinv/scripts/sync-server.sh:*)"
+      "Bash(~/serverinv/scripts/sync-server.sh:*)",
+      "Bash(/tmp/security_audit_report.md:*)"
     ]
   }
 }

@@ -35,9 +35,14 @@ async function main() {
 
   console.log("Seeding database...");
 
-  // Admin user
+  // Admin user (must change password on first login)
   const hash = await bcrypt.hash("admin", 10);
-  await insertIgnoreConflict(users, { username: "admin", password: hash, role: "admin" });
+  await insertIgnoreConflict(users, {
+    username: "admin",
+    password: hash,
+    role: "admin",
+    mustChangePassword: true
+  });
 
   // Currencies
   await insertIgnoreConflict(currencies, [

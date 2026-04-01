@@ -9,14 +9,20 @@ const SECRET = process.env.JWT_SECRET;
 export interface JwtPayload {
   userId: number;
   role: string;
+  mustChangePassword?: boolean;
 }
 
 /** Sign a JWT with user id and role. */
 export function signToken(payload: JwtPayload): string {
-  return jwt.sign(payload, SECRET, { expiresIn: "24h" });
+  return jwt.sign(payload, SECRET, {
+    expiresIn: "24h",
+    algorithm: "HS256"
+  });
 }
 
 /** Verify and decode a JWT. */
 export function verifyToken(token: string): JwtPayload {
-  return jwt.verify(token, SECRET) as JwtPayload;
+  return jwt.verify(token, SECRET, {
+    algorithms: ["HS256"]
+  }) as JwtPayload;
 }

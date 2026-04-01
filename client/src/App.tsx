@@ -3,6 +3,7 @@ import { useAuthStore } from "./stores/authStore";
 import LoginPage from "./pages/LoginPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import ChangePasswordPage from "./pages/ChangePasswordPage";
 import AppLayout from "./components/layout/AppLayout";
 import InventoryPage from "./pages/InventoryPage";
 import RenewalsPage from "./pages/RenewalsPage";
@@ -34,6 +35,7 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/change-password" element={<ChangePasswordPage />} />
       <Route
         path="/"
         element={

@@ -41,3 +41,31 @@ export function requireEditorOrAdmin(req: Request, res: Response, next: NextFunc
   }
   next();
 }
+
+/**
+ * Check if user must change password before accessing protected resources.
+ * Returns 403 if password change is required.
+ * This middleware should be applied AFTER authenticate() and BEFORE other route handlers.
+ *
+ * Exempted routes (users can access these even if password change is required):
+ * - /api/users/me/password (to allow password change)
+ * - /api/auth/me (to allow fetching user profile)
+ */
+export function checkPasswordChangeRequired(req: Request, res: Response, next: NextFunction) {
+  // Skip check for exempted routes
+  const exemptedPaths = ['/api/users/me/password', '/api/auth/me'];
+  if (exemptedPaths.includes(req.path)) {
+    next();
+    return;
+  }
+
+  if (req.user?.mustChangePassword === true) {
+    res.status(403).json({
+      error: "Password change required",
+      code: "PASSWORD_CHANGE_REQUIRED",
+      message: "You must change your password before accessing this resource"
+    });
+    return;
+  }
+  next();
+}

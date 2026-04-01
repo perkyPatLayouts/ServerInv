@@ -23,7 +23,12 @@ router.put("/me/password", validate(changePasswordSchema), async (req: Request, 
   const valid = await comparePassword(currentPassword, user.password);
   if (!valid) { res.status(400).json({ error: "Current password is incorrect" }); return; }
   const hash = await hashPassword(newPassword);
-  await db.update(users).set({ password: hash, updatedAt: new Date() }).where(eq(users.id, userId));
+  // Clear mustChangePassword flag when user changes their password
+  await db.update(users).set({
+    password: hash,
+    mustChangePassword: false,
+    updatedAt: new Date()
+  }).where(eq(users.id, userId));
   res.json({ success: true });
 });
 
