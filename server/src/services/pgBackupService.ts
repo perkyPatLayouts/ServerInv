@@ -591,6 +591,11 @@ export class PgBackupService {
               console.log(`[PgBackupService]   Lines after split: ${lines.length}`);
               console.log(`[PgBackupService]   Line 0 length: ${lines[0]?.length}`);
               console.log(`[PgBackupService]   Line 1 length: ${lines[1]?.length}`);
+              console.log(`[PgBackupService]   First 100 chars: ${dataBlob.substring(0, 100)}`);
+              console.log(`[PgBackupService]   Last 100 chars: ${dataBlob.substring(dataBlob.length - 100)}`);
+              // Count actual newlines
+              const newlineCount = (dataBlob.match(/\n/g) || []).length;
+              console.log(`[PgBackupService]   Actual newline count: ${newlineCount}`);
             }
 
             let rowsProcessed = 0;
