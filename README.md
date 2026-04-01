@@ -50,7 +50,7 @@ Open http://localhost:5173 and login with `admin` / `admin`.
 | [docs/README.md](docs/README.md) | Documentation index and quick start |
 | [docs/user-guide.md](docs/user-guide.md) | User interface and features guide |
 | [docs/deployment-guide.md](docs/deployment-guide.md) | VPS/Dedicated server deployment |
-| [docs/shared-hosting-guide.md](docs/shared-hosting-guide.md) | Shared hosting (cPanel/DirectAdmin) deployment |
+| [docs/shared-hosting-guide.md](docs/shared-hosting-guide.md) | Shared hosting (cPanel/DirectAdmin/VirtualMin) deployment |
 | [docs/update-guide.md](docs/update-guide.md) | Updating existing installations |
 | [docs/backup-guide.md](docs/backup-guide.md) | Automated backups, cron jobs, disaster recovery |
 | [docs/developer-guide.md](docs/developer-guide.md) | Architecture and development guide |
@@ -90,16 +90,16 @@ The interactive installer will:
 
 See [docs/deployment-guide.md](docs/deployment-guide.md) for full details.
 
-### Shared Hosting (cPanel/DirectAdmin)
+### Shared Hosting (cPanel/DirectAdmin/VirtualMin)
 
-Deploy to shared hosting with cPanel or DirectAdmin (supports Apache, LiteSpeed, and compatible web servers):
+Deploy to shared hosting with cPanel, DirectAdmin, or VirtualMin GPL (supports Apache, LiteSpeed, and compatible web servers):
 
 ```bash
 bash deploy/setup-shared.sh
 ```
 
 The script will:
-- Detect your control panel (cPanel or DirectAdmin)
+- Detect your control panel (cPanel, DirectAdmin, or VirtualMin)
 - Auto-detect web server (Apache/LiteSpeed)
 - Prompt for domain and database credentials
 - Install dependencies and build the application
