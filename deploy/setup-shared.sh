@@ -317,15 +317,41 @@ else
 fi
 echo -e "${GREEN}✓ JWT secret generated${NC}"
 
+# Prompt for Application URL
+echo ""
+echo -e "${BLUE}Application URL Configuration${NC}"
+echo "This is the URL where your application will be accessible."
+echo "It's used for password reset links and CORS configuration."
+echo ""
+echo "Enter the full URL for your application."
+echo "Examples:"
+echo "  - https://$DOMAIN (recommended)"
+echo "  - http://$DOMAIN (if not using SSL)"
+echo "  - https://$DOMAIN:3000 (if using a custom port)"
+echo ""
+read -p "Application URL [https://$DOMAIN]: " app_url_input
+APP_URL="${app_url_input:-https://$DOMAIN}"
+
+# Extract domain from URL (remove protocol and port)
+url_domain=$(echo "$APP_URL" | sed -e 's|^https\?://||' -e 's|:[0-9]*$||')
+
+# Set ALLOWED_ORIGINS to both http and https
+ALLOWED_ORIGINS="https://$url_domain,http://$url_domain"
+
+echo ""
+echo -e "${GREEN}✓ APP_URL set to: $APP_URL${NC}"
+echo -e "${GREEN}✓ ALLOWED_ORIGINS automatically set to: $ALLOWED_ORIGINS${NC}"
+
 # Prompt for CORS allowed origins
 echo ""
-echo -e "${BLUE}Configuring CORS (Cross-Origin Resource Sharing)${NC}"
-echo "The main domain will be automatically allowed:"
-echo "  - https://$DOMAIN"
-echo "  - http://$DOMAIN"
+echo -e "${BLUE}CORS Configuration${NC}"
 echo ""
-ALLOWED_ORIGINS="https://$DOMAIN,http://$DOMAIN"
-
+echo "Current ALLOWED_ORIGINS (derived from APP_URL):"
+echo "  $ALLOWED_ORIGINS"
+echo ""
+echo "ℹ️  Note: ALLOWED_ORIGINS is automatically set from APP_URL (both http and https)."
+echo "   Only add additional origins if you need to allow other domains."
+echo ""
 read -p "Do you want to add additional allowed origins? (y/N): " add_origins
 if [[ "$add_origins" =~ ^[Yy]$ ]]; then
   echo ""
@@ -337,6 +363,7 @@ if [[ "$add_origins" =~ ^[Yy]$ ]]; then
   read -p "Additional origins: " additional_origins
   if [ -n "$additional_origins" ]; then
     ALLOWED_ORIGINS="$ALLOWED_ORIGINS,$additional_origins"
+    echo -e "${GREEN}✓ Updated ALLOWED_ORIGINS to: $ALLOWED_ORIGINS${NC}"
   fi
 fi
 
@@ -384,7 +411,7 @@ NODE_ENV=production
 
 # CORS
 ALLOWED_ORIGINS=$ALLOWED_ORIGINS
-APP_URL=https://$DOMAIN
+APP_URL=$APP_URL
 
 # SMTP Configuration (for password reset emails)
 SMTP_HOST=$SMTP_HOST

@@ -342,15 +342,41 @@ else
   chown -R $APP_USER:$APP_USER $APP_DIR
 fi
 
+# Prompt for Application URL
+echo ""
+echo "==> Application URL Configuration"
+echo "    This is the URL where your application will be accessible."
+echo "    It's used for password reset links and CORS configuration."
+echo ""
+echo "Enter the full URL for your application."
+echo "Examples:"
+echo "  - https://$APP_DOMAIN (recommended)"
+echo "  - http://$APP_DOMAIN (if not using SSL)"
+echo "  - https://$APP_DOMAIN:3000 (if using a custom port)"
+echo ""
+read -rp "Application URL [https://$APP_DOMAIN]: " app_url_input
+APP_URL="${app_url_input:-https://$APP_DOMAIN}"
+
+# Extract domain from URL (remove protocol and port)
+url_domain=$(echo "$APP_URL" | sed -e 's|^https\?://||' -e 's|:[0-9]*$||')
+
+# Set ALLOWED_ORIGINS to both http and https
+ALLOWED_ORIGINS="https://$url_domain,http://$url_domain"
+
+echo ""
+echo "✓ APP_URL set to: $APP_URL"
+echo "✓ ALLOWED_ORIGINS automatically set to: $ALLOWED_ORIGINS"
+
 # Prompt for CORS allowed origins
 echo ""
-echo "==> Configuring CORS (Cross-Origin Resource Sharing)"
-echo "    The main domain will be automatically allowed:"
-echo "    - https://$APP_DOMAIN"
-echo "    - http://$APP_DOMAIN"
+echo "==> CORS Configuration"
 echo ""
-ALLOWED_ORIGINS="https://$APP_DOMAIN,http://$APP_DOMAIN"
-
+echo "Current ALLOWED_ORIGINS (derived from APP_URL):"
+echo "  $ALLOWED_ORIGINS"
+echo ""
+echo "ℹ️  Note: ALLOWED_ORIGINS is automatically set from APP_URL (both http and https)."
+echo "   Only add additional origins if you need to allow other domains."
+echo ""
 read -rp "Do you want to add additional allowed origins? (y/N): " add_origins
 if [[ "$add_origins" =~ ^[Yy]$ ]]; then
   echo ""
@@ -362,6 +388,7 @@ if [[ "$add_origins" =~ ^[Yy]$ ]]; then
   read -rp "Additional origins: " additional_origins
   if [ -n "$additional_origins" ]; then
     ALLOWED_ORIGINS="$ALLOWED_ORIGINS,$additional_origins"
+    echo "✓ Updated ALLOWED_ORIGINS to: $ALLOWED_ORIGINS"
   fi
 fi
 
@@ -400,7 +427,7 @@ DATABASE_URL=$DATABASE_URL
 JWT_SECRET=$JWT_SECRET
 PORT=3000
 ALLOWED_ORIGINS=$ALLOWED_ORIGINS
-APP_URL=https://$APP_DOMAIN
+APP_URL=$APP_URL
 
 # SMTP Configuration (for password reset emails)
 SMTP_HOST=$SMTP_HOST

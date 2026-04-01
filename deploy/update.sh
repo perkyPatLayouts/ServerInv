@@ -90,52 +90,6 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
   fi
 fi
 
-# Optional: Update ALLOWED_ORIGINS
-echo ""
-echo "==> CORS Configuration"
-echo "ℹ️  Note: ALLOWED_ORIGINS is automatically set from APP_URL (both http and https)."
-echo "   Only update this if you need additional origins beyond the main domain."
-echo ""
-read -p "Do you want to manually override ALLOWED_ORIGINS? (y/N): " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-  echo ""
-  echo "Current ALLOWED_ORIGINS in .env:"
-  grep ALLOWED_ORIGINS "$APP_DIR/server/.env" || echo "  (not found)"
-  echo ""
-  echo "⚠️  WARNING: This will override the automatic setting from APP_URL."
-  echo "Enter new allowed origins (comma-separated, no spaces)."
-  echo "Examples:"
-  echo "  - https://example.com,http://example.com"
-  echo "  - https://app.example.com,https://www.example.com,http://example.com"
-  echo ""
-  read -p "New ALLOWED_ORIGINS: " new_origins
-  if [ -n "$new_origins" ]; then
-    # Update or add ALLOWED_ORIGINS in .env file
-    if grep -q "ALLOWED_ORIGINS=" "$APP_DIR/server/.env"; then
-      # Update existing
-      sed -i "s|ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=$new_origins|" "$APP_DIR/server/.env"
-      echo "✓ Updated ALLOWED_ORIGINS in $APP_DIR/server/.env"
-    else
-      # Add new
-      echo "ALLOWED_ORIGINS=$new_origins" >> "$APP_DIR/server/.env"
-      echo "✓ Added ALLOWED_ORIGINS to $APP_DIR/server/.env"
-    fi
-
-    # Also update root .env if it exists
-    if [ -f "$APP_DIR/.env" ]; then
-      if grep -q "ALLOWED_ORIGINS=" "$APP_DIR/.env"; then
-        sed -i "s|ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=$new_origins|" "$APP_DIR/.env"
-      else
-        echo "ALLOWED_ORIGINS=$new_origins" >> "$APP_DIR/.env"
-      fi
-      echo "✓ Updated ALLOWED_ORIGINS in $APP_DIR/.env"
-    fi
-  else
-    echo "No origins entered. Skipping ALLOWED_ORIGINS update."
-  fi
-fi
-
 # Optional: Update APP_URL
 echo ""
 echo "==> Application URL Configuration"
@@ -201,6 +155,53 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     fi
   else
     echo "No URL entered. Skipping APP_URL update."
+  fi
+fi
+
+# Optional: Update ALLOWED_ORIGINS
+echo ""
+echo "==> CORS Configuration"
+echo ""
+echo "Current ALLOWED_ORIGINS in .env:"
+grep ALLOWED_ORIGINS "$APP_DIR/server/.env" || echo "  (not set)"
+echo ""
+echo "ℹ️  Note: ALLOWED_ORIGINS is automatically set from APP_URL (both http and https)."
+echo "   Only update this if you need additional origins beyond the main domain."
+echo ""
+read -p "Do you want to manually override ALLOWED_ORIGINS? (y/N): " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+  echo ""
+  echo "⚠️  WARNING: This will override the automatic setting from APP_URL."
+  echo "Enter new allowed origins (comma-separated, no spaces)."
+  echo "Examples:"
+  echo "  - https://example.com,http://example.com"
+  echo "  - https://app.example.com,https://www.example.com,http://example.com"
+  echo ""
+  read -p "New ALLOWED_ORIGINS: " new_origins
+  if [ -n "$new_origins" ]; then
+    # Update or add ALLOWED_ORIGINS in .env file
+    if grep -q "ALLOWED_ORIGINS=" "$APP_DIR/server/.env"; then
+      # Update existing
+      sed -i "s|ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=$new_origins|" "$APP_DIR/server/.env"
+      echo "✓ Updated ALLOWED_ORIGINS in $APP_DIR/server/.env"
+    else
+      # Add new
+      echo "ALLOWED_ORIGINS=$new_origins" >> "$APP_DIR/server/.env"
+      echo "✓ Added ALLOWED_ORIGINS to $APP_DIR/server/.env"
+    fi
+
+    # Also update root .env if it exists
+    if [ -f "$APP_DIR/.env" ]; then
+      if grep -q "ALLOWED_ORIGINS=" "$APP_DIR/.env"; then
+        sed -i "s|ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=$new_origins|" "$APP_DIR/.env"
+      else
+        echo "ALLOWED_ORIGINS=$new_origins" >> "$APP_DIR/.env"
+      fi
+      echo "✓ Updated ALLOWED_ORIGINS in $APP_DIR/.env"
+    fi
+  else
+    echo "No origins entered. Skipping ALLOWED_ORIGINS update."
   fi
 fi
 
