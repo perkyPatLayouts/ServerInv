@@ -112,8 +112,8 @@ sudo ufw status
 ### Update Process
 ```bash
 ssh user@server
-cd /opt/serverinv
-sudo bash deploy/update.sh
+cd /opt/serverinv/deploy
+sudo ./update.sh
 ```
 
 The update script will:

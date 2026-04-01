@@ -453,8 +453,8 @@ This allows SSH (22), HTTP (80), and HTTPS (443).
 
 Quick update:
 ```bash
-cd /opt/serverinv
-sudo bash deploy/update.sh
+cd /opt/serverinv/deploy
+sudo ./update.sh
 ```
 
 The update script handles dependencies, migrations, frontend rebuild, and optionally allows you to:

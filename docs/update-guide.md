@@ -22,12 +22,12 @@ Run the automated update script:
 
 ```bash
 # For default installation (username: serverinv)
-cd /opt/serverinv
-sudo bash deploy/update.sh
+cd /opt/serverinv/deploy
+sudo ./update.sh
 
 # For custom installation (e.g., serverinv-prod)
-cd /opt/serverinv-prod
-sudo bash deploy/update.sh serverinv-prod
+cd /opt/serverinv-prod/deploy
+sudo ./update.sh serverinv-prod
 ```
 
 **Note**: If you used a custom username during deployment, you must specify it when updating. The script will auto-detect available installations if not specified.
