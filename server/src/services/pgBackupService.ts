@@ -338,48 +338,7 @@ export class PgBackupService {
         // Convert COPY statements to INSERT for conflict resolution
         if (options.conflictResolution === 'use-restored') {
           console.log("[PgBackupService] Converting COPY statements to INSERT for conflict resolution");
-
-          // Debug: check what statements look like before conversion
-          const copyCount = statements.filter(s => s.trim().toUpperCase().startsWith('COPY ')).length;
-          console.log(`[PgBackupService] Before conversion: ${statements.length} statements, ${copyCount} COPY statements`);
-
-          // Show first COPY statement structure
-          const firstCopyIndex = statements.findIndex(s => s.trim().toUpperCase().startsWith('COPY '));
-          if (firstCopyIndex >= 0) {
-            const firstCopy = statements[firstCopyIndex];
-            console.log(`[PgBackupService] First COPY statement at index ${firstCopyIndex} (${firstCopy.length} chars):`);
-            console.log(firstCopy);
-
-            // Show the next few statements after the COPY to see if data is there
-            console.log(`[PgBackupService] Next 3 statements after COPY:`);
-            for (let i = 1; i <= 3 && firstCopyIndex + i < statements.length; i++) {
-              const nextStmt = statements[firstCopyIndex + i];
-              console.log(`[PgBackupService]   [${i}] (${nextStmt.length} chars): ${nextStmt.substring(0, 200)}`);
-            }
-          }
-
           statements = this.convertCopyToInsert(statements, options.conflictResolution);
-
-          // Log first 3 converted INSERT statements for debugging
-          console.log("[PgBackupService] Sample converted INSERT statements:");
-          let sampleCount = 0;
-          for (const stmt of statements) {
-            if (stmt.trim().toUpperCase().startsWith('INSERT')) {
-              console.log(`[PgBackupService] Sample ${sampleCount + 1}: ${stmt.substring(0, 200)}...`);
-              sampleCount++;
-              if (sampleCount >= 3) break;
-            }
-          }
-
-          if (sampleCount === 0) {
-            console.log("[PgBackupService] WARNING: No INSERT statements found after conversion!");
-            // Show what we do have
-            const statementTypes = statements.slice(0, 10).map(s => {
-              const preview = s.trim().substring(0, 50);
-              return preview;
-            });
-            console.log("[PgBackupService] First 10 statement previews:", statementTypes);
-          }
         }
 
         let insertCount = 0;
@@ -571,14 +530,6 @@ export class PgBackupService {
           if (i < statements.length) {
             const dataBlob = statements[i];
 
-            // Debug logging for servers table
-            if (tableName.includes('servers')) {
-              console.log(`[PgBackupService] Processing COPY for ${tableName}`);
-              console.log(`[PgBackupService]   Columns: ${columns.length}`);
-              console.log(`[PgBackupService]   Data blob length: ${dataBlob.length} chars`);
-              console.log(`[PgBackupService]   Data blob preview: ${dataBlob.substring(0, 200)}...`);
-            }
-
             // Parse COPY data properly: fields are tab-separated, rows are newline-separated
             // BUT fields can contain newlines! We need to count tabs to identify row boundaries.
             const expectedFieldCount = columns.length;
@@ -587,18 +538,6 @@ export class PgBackupService {
             let fieldBuffer = '';
             let tabCount = 0;
 
-            if (tableName.includes('servers')) {
-              console.log(`[PgBackupService]   Lines after split: ${lines.length}`);
-              console.log(`[PgBackupService]   Line 0 length: ${lines[0]?.length}`);
-              console.log(`[PgBackupService]   Line 1 length: ${lines[1]?.length}`);
-              console.log(`[PgBackupService]   First 100 chars: ${dataBlob.substring(0, 100)}`);
-              console.log(`[PgBackupService]   Last 100 chars: ${dataBlob.substring(dataBlob.length - 100)}`);
-              // Count actual newlines
-              const newlineCount = (dataBlob.match(/\n/g) || []).length;
-              console.log(`[PgBackupService]   Actual newline count: ${newlineCount}`);
-            }
-
-            let rowsProcessed = 0;
             for (const line of lines) {
               if (line.trim() === '\\.' || line.trim() === '') {
                 // End marker or empty line
@@ -612,13 +551,6 @@ export class PgBackupService {
 
               // Count tabs in this line to determine if it's a new row or continuation
               const tabsInLine = (line.match(/\t/g) || []).length;
-
-              if (tableName.includes('servers')) {
-                if (rowsProcessed < 2) {
-                  console.log(`[PgBackupService]   Row ${rowsProcessed}: ${tabsInLine} tabs, line length: ${line.length}`);
-                }
-                rowsProcessed++;
-              }
 
               if (tabCount === 0 && tabsInLine >= expectedFieldCount - 1) {
                 // This line has enough tabs to be a complete row
@@ -673,12 +605,6 @@ export class PgBackupService {
                   tabCount += tabsInLine;
                 }
               }
-            }
-
-            if (tableName.includes('servers')) {
-              const serversInserts = newStatements.filter(s => s.includes('INSERT INTO public.servers')).length;
-              console.log(`[PgBackupService]   Total rows processed: ${rowsProcessed}`);
-              console.log(`[PgBackupService]   INSERT statements created: ${serversInserts}`);
             }
           }
 
@@ -755,17 +681,6 @@ export class PgBackupService {
 
       insertStmt += ';';
       newStatements.push(insertStmt);
-
-      // Debug: log table name and first INSERT for each table
-      const insertCount = newStatements.filter(s => s.includes(`INSERT INTO ${quotedTableName}`)).length;
-      if (insertCount === 1) {
-        console.log(`[PgBackupService] First INSERT for ${tableName}:`);
-        console.log(`[PgBackupService]   Statement length: ${insertStmt.length} chars`);
-        console.log(`[PgBackupService]   Has ON CONFLICT: ${insertStmt.includes('ON CONFLICT')}`);
-        if (tableName.includes('servers')) {
-          console.log(`[PgBackupService]   FULL: ${insertStmt}`);
-        }
-      }
     }
   }
 
