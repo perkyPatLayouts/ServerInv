@@ -844,14 +844,14 @@ export class PgBackupService {
         continue;
       }
 
-      // Handle SQL comments (only outside strings)
-      if (!inString && char === "-" && nextChar === "-") {
-        // Skip to end of line
-        while (i < sql.length && sql[i] !== "\n") {
-          i++;
-        }
-        continue;
-      }
+      // DON'T skip SQL comments - they might be inside COPY data (e.g., benchmark output with dashes)
+      // The database will handle comments when executing. We just split statements.
+      // if (!inString && char === "-" && nextChar === "-") {
+      //   while (i < sql.length && sql[i] !== "\n") {
+      //     i++;
+      //   }
+      //   continue;
+      // }
 
       // Handle COPY data terminator: \. on its own line
       if (!inString && char === "\\" && (i === 0 || sql[i - 1] === "\n" || sql[i - 1] === "\r")) {
