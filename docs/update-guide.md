@@ -34,17 +34,21 @@ sudo bash deploy/update.sh serverinv-prod
 
 The script will:
 1. Stop the ServerInv service
-2. Pull the latest code via `git pull`
-3. Install any new dependencies
-4. Rebuild the frontend
-5. Run database migrations
-6. **Optionally prompt to create/update admin credentials** (if login was lost)
-7. **Optionally update ALLOWED_ORIGINS** (manual override only - normally auto-set from APP_URL)
-8. **Optionally update APP_URL** (automatically updates ALLOWED_ORIGINS to both http and https)
-9. **Optionally update SMTP settings** (for email functionality)
-10. Restart the service and show status
+2. **Clean build artifacts** (removes `*.tsbuildinfo` files to prevent conflicts)
+3. **Automatically stash any local changes** (preserves uncommitted work)
+4. Pull the latest code via `git pull`
+5. Install any new dependencies
+6. Rebuild the frontend
+7. Run database migrations
+8. **Optionally prompt to create/update admin credentials** (if login was lost)
+9. **Optionally update ALLOWED_ORIGINS** (manual override only - normally auto-set from APP_URL)
+10. **Optionally update APP_URL** (automatically updates ALLOWED_ORIGINS to both http and https)
+11. **Optionally update SMTP settings** (for email functionality)
+12. Restart the service and show status
 
 **Note:** When you update APP_URL, ALLOWED_ORIGINS is automatically set to include both `http://domain` and `https://domain`. You only need to manually update ALLOWED_ORIGINS if you need additional domains beyond your main domain.
+
+**Automatic Conflict Handling:** The update script now automatically cleans build artifacts and stashes local changes before pulling, preventing common git conflicts. Any stashed changes are preserved and can be recovered using `git stash list` and `git stash pop` if needed.
 
 ### Manual Update
 
@@ -61,11 +65,15 @@ sudo systemctl stop ${SERVICE_NAME}
 
 cd ${APP_DIR}
 
+# Clean build artifacts first
+sudo -u ${APP_USER} find . -name "*.tsbuildinfo" -type f -delete 2>/dev/null || true
+
 # Pull latest code (or upload new files)
+# The automated script handles stashing, but for manual updates:
 sudo -u ${APP_USER} git pull
 
 # If git pull fails with conflicts, stash local changes first:
-# sudo -u ${APP_USER} git stash
+# sudo -u ${APP_USER} git stash push -m "Manual stash $(date +%Y-%m-%d_%H:%M:%S)"
 # sudo -u ${APP_USER} git pull
 # sudo -u ${APP_USER} git stash pop  # (optional, to restore local changes)
 
@@ -166,11 +174,14 @@ bash deploy/update-shared.sh  # if available, otherwise use manual steps
 ```bash
 cd ~/serverinv
 
+# Clean build artifacts first
+find . -name "*.tsbuildinfo" -type f -delete 2>/dev/null || true
+
 # Pull latest code
 git pull
 
 # If git pull fails with conflicts, stash local changes first:
-# git stash
+# git stash push -m "Manual stash $(date +%Y-%m-%d_%H:%M:%S)"
 # git pull
 # git stash pop  # (optional, to restore local changes)
 
@@ -486,14 +497,19 @@ chmod -R 755 ~/serverinv
 
 ### Git pull fails with conflicts
 
-If `git pull` fails because of local modifications or conflicts:
+**Note:** The automated update script (`deploy/update.sh`) now handles this automatically by cleaning build artifacts and stashing changes before pulling. This section is for manual updates or advanced troubleshooting.
+
+If `git pull` fails because of local modifications or conflicts during manual updates:
 
 **VPS:**
 ```bash
 cd /opt/serverinv
 
+# Clean build artifacts first
+sudo -u serverinv find . -name "*.tsbuildinfo" -type f -delete
+
 # Stash local changes
-sudo -u serverinv git stash
+sudo -u serverinv git stash push -m "Manual stash $(date +%Y-%m-%d_%H:%M:%S)"
 
 # Pull latest code
 sudo -u serverinv git pull
@@ -509,8 +525,11 @@ sudo -u serverinv git stash pop
 ```bash
 cd ~/serverinv
 
+# Clean build artifacts first
+find . -name "*.tsbuildinfo" -type f -delete
+
 # Stash local changes
-git stash
+git stash push -m "Manual stash $(date +%Y-%m-%d_%H:%M:%S)"
 
 # Pull latest code
 git pull
@@ -523,10 +542,17 @@ git stash pop
 ```
 
 **What this does:**
-- `git stash` - Temporarily saves your local changes
+- `find ... -delete` - Removes TypeScript build artifacts that shouldn't be tracked
+- `git stash push -m` - Temporarily saves your local changes with a descriptive message
 - `git pull` - Updates from remote repository
 - `git stash pop` - Attempts to reapply your local changes (may cause merge conflicts)
 - `git reset --hard origin/main` - Discards all local changes permanently (use with caution)
+
+**View stashed changes:**
+```bash
+git stash list  # Shows all stashed changes
+git stash show  # Shows what's in the most recent stash
+```
 
 ### Database migration fails
 
@@ -738,4 +764,4 @@ If you encounter issues during updates:
 
 ---
 
-Last Updated: 2025-03-28
+Last Updated: 2026-04-01

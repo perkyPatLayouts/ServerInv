@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+- **Update Script** - Enhanced conflict handling in `deploy/update.sh`
+  - Automatically cleans TypeScript build artifacts (`*.tsbuildinfo`) before pulling
+  - Automatically stashes local changes to prevent git pull conflicts
+  - Prevents "Your local changes would be overwritten" errors during updates
+  - Preserves uncommitted work in git stash for recovery if needed
+- **Git Ignore** - Added `*.tsbuildinfo` to prevent tracking TypeScript build artifacts
+
 ## [1.1.0] - 2026-03-27
 
 ### Added

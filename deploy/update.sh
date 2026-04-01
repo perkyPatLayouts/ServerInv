@@ -40,6 +40,18 @@ fi
 echo "==> Stopping ServerInv service"
 systemctl stop ${SERVICE_NAME}
 
+echo "==> Cleaning build artifacts"
+cd "$APP_DIR"
+sudo -u "$APP_USER" find . -name "*.tsbuildinfo" -type f -delete 2>/dev/null || true
+
+echo "==> Stashing local changes (if any)"
+if sudo -u "$APP_USER" git diff --quiet && sudo -u "$APP_USER" git diff --cached --quiet; then
+  echo "No local changes to stash"
+else
+  echo "Local changes detected, stashing..."
+  sudo -u "$APP_USER" git stash push -m "Auto-stash before update $(date +%Y-%m-%d_%H:%M:%S)"
+fi
+
 echo "==> Pulling latest code"
 cd "$APP_DIR"
 sudo -u "$APP_USER" git pull
