@@ -819,6 +819,7 @@ export class PgBackupService {
     let current = "";
     let inString = false;
     let stringChar = "";
+    let inCopyData = false; // Track if we're inside COPY data block
 
     for (let i = 0; i < sql.length; i++) {
       const char = sql[i];
@@ -844,14 +845,14 @@ export class PgBackupService {
         continue;
       }
 
-      // DON'T skip SQL comments - they might be inside COPY data (e.g., benchmark output with dashes)
-      // The database will handle comments when executing. We just split statements.
-      // if (!inString && char === "-" && nextChar === "-") {
-      //   while (i < sql.length && sql[i] !== "\n") {
-      //     i++;
-      //   }
-      //   continue;
-      // }
+      // Handle SQL comments - but NOT inside COPY data (benchmark output has dashes)
+      if (!inString && !inCopyData && char === "-" && nextChar === "-") {
+        // Skip to end of line
+        while (i < sql.length && sql[i] !== "\n") {
+          i++;
+        }
+        continue;
+      }
 
       // Handle COPY data terminator: \. on its own line
       if (!inString && char === "\\" && (i === 0 || sql[i - 1] === "\n" || sql[i - 1] === "\r")) {
@@ -863,6 +864,7 @@ export class PgBackupService {
           // DON'T trim - we need to preserve newlines in COPY data!
           statements.push(current);
           current = "";
+          inCopyData = false; // Exiting COPY data block
           // Skip to end of line
           while (i < sql.length && sql[i] !== "\n") {
             i++;
@@ -879,7 +881,12 @@ export class PgBackupService {
       // Handle statement terminator
       if (!inString && char === ";") {
         current += char;
-        statements.push(current.trim());
+        const statement = current.trim();
+        statements.push(statement);
+        // Check if this is a COPY statement - next content will be COPY data
+        if (statement.toUpperCase().includes("FROM STDIN")) {
+          inCopyData = true;
+        }
         current = "";
         continue;
       }
