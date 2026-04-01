@@ -855,7 +855,8 @@ export class PgBackupService {
           current += "\\.";
           i++; // Skip the dot
           // Treat this as statement terminator for COPY blocks
-          statements.push(current.trim());
+          // DON'T trim - we need to preserve newlines in COPY data!
+          statements.push(current);
           current = "";
           // Skip to end of line
           while (i < sql.length && sql[i] !== "\n") {
