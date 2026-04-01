@@ -13,6 +13,7 @@ ServerInv is a web application for maintaining an inventory of VPS, Shared, and 
 | [Deployment Guide](deployment-guide.md) | DevOps / Sysadmins | Deploying to a VPS/dedicated server |
 | [Shared Hosting Guide](shared-hosting-guide.md) | DevOps / Sysadmins | Deploying to cPanel/DirectAdmin hosting |
 | [Update Guide](update-guide.md) | DevOps / Sysadmins | Updating existing installations |
+| [Backup Guide](backup-guide.md) | DevOps / Sysadmins | Automated backups, cron jobs, disaster recovery |
 | [Security](SECURITY.md) | All | Security measures and best practices |
 
 ## Quick Start (Local Development)

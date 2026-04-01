@@ -15,7 +15,7 @@ export interface JwtPayload {
 /** Sign a JWT with user id and role. */
 export function signToken(payload: JwtPayload): string {
   return jwt.sign(payload, SECRET, {
-    expiresIn: "24h",
+    expiresIn: "30d",
     algorithm: "HS256"
   });
 }

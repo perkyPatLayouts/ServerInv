@@ -464,6 +464,8 @@ The update script handles dependencies, migrations, frontend rebuild, and option
 
 ServerInv supports database backup and restore directly through the browser.
 
+**📋 For comprehensive backup documentation including automated cron-based backups, see the [Backup Guide](./backup-guide.md).**
+
 ### Creating a Backup
 
 1. Log in as admin
@@ -479,19 +481,25 @@ ServerInv supports database backup and restore directly through the browser.
 3. Confirm the warning that all existing data will be replaced
 4. After restore completes, refresh the page
 
-### Offsite Backup Strategy
+### Automated Backup Strategy
 
-For automated offsite backups, set up a cron job on the server:
+For comprehensive automated backup documentation including:
+- Cron-based scheduling
+- Backup rotation and retention
+- Offsite/remote backups (SCP, rsync, cloud storage)
+- Backup verification procedures
+- Disaster recovery procedures
 
+**👉 See the [Backup Guide](./backup-guide.md) for detailed instructions.**
+
+**Quick example** for daily PostgreSQL backups:
 ```bash
-# Example: daily backup to a local directory
+# Edit serverinv user's crontab
 sudo -u serverinv crontab -e
 
-# Add this line for daily backups at 2 AM:
-0 2 * * * pg_dump "$(grep DATABASE_URL /opt/serverinv/server/.env | cut -d= -f2-)" > /home/serverinv/backups/serverinv-$(date +\%Y\%m\%d).sql
-
-# Optionally copy to a remote server via scp/rsync:
-0 3 * * * scp /home/serverinv/backups/serverinv-$(date +\%Y\%m\%d).sql user@backup-server:/backups/
+# Add daily backup at 2 AM with 7-day retention
+0 2 * * * pg_dump "$(grep DATABASE_URL /opt/serverinv/server/.env | cut -d= -f2-)" > /home/serverinv/backups/serverinv-$(date +\%Y\%m\%d).sql 2>> /home/serverinv/backups/backup.log
+5 2 * * * find /home/serverinv/backups -name "serverinv-*.sql" -type f -mtime +7 -delete
 ```
 
 ---

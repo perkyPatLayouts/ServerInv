@@ -121,7 +121,7 @@ The script will:
 
 ### Shared Hosting Deployment
 
-For cPanel or DirectAdmin environments:
+For cPanel, DirectAdmin, or VirtualMin GPL environments:
 
 \`\`\`bash
 # Run as hosting user (no sudo)
@@ -129,7 +129,7 @@ bash deploy/setup-shared.sh
 \`\`\`
 
 The script will:
-- Detect control panel (cPanel/DirectAdmin)
+- Detect control panel (cPanel/DirectAdmin/VirtualMin)
 - Configure Node.js application
 - Set up database connection (PostgreSQL or MySQL)
 - Configure domain and SSL

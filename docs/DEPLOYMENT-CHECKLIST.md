@@ -65,7 +65,7 @@ The setup script will display:
 ### 6. Security Configuration
 - [ ] Confirm `ALLOWED_ORIGINS` in `.env` matches your domain
 - [ ] Verify CORS is working (no errors in browser console)
-- [ ] Test authentication expiration (24 hours)
+- [ ] Test authentication expiration (30 days)
 - [ ] Confirm backup/restore is admin-only
 - [ ] Verify rate limiting: rapid login attempts return 429 after 5 tries
 - [ ] Test SSL auto-renewal setup: `sudo certbot renew --dry-run`

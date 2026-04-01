@@ -52,6 +52,7 @@ Open http://localhost:5173 and login with `admin` / `admin`.
 | [docs/deployment-guide.md](docs/deployment-guide.md) | VPS/Dedicated server deployment |
 | [docs/shared-hosting-guide.md](docs/shared-hosting-guide.md) | Shared hosting (cPanel/DirectAdmin) deployment |
 | [docs/update-guide.md](docs/update-guide.md) | Updating existing installations |
+| [docs/backup-guide.md](docs/backup-guide.md) | Automated backups, cron jobs, disaster recovery |
 | [docs/developer-guide.md](docs/developer-guide.md) | Architecture and development guide |
 | [docs/api-reference.md](docs/api-reference.md) | REST API endpoint documentation |
 | [docs/database-schema.md](docs/database-schema.md) | Database schema and relationships |
@@ -120,4 +121,4 @@ See [docs/shared-hosting-guide.md](docs/shared-hosting-guide.md) for full detail
 
 ## License
 
-Private project - All rights reserved.
+This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.

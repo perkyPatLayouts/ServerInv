@@ -18,7 +18,7 @@ All CRITICAL, HIGH, and MEDIUM severity issues have been addressed. Low priority
 - JWT secret is **required** - application fails to start if `JWT_SECRET` environment variable is not set
 - No fallback to weak default secrets
 - Generate strong secret: `openssl rand -base64 32`
-- Token expiration: 24 hours (configurable)
+- Token expiration: 30 days (configurable)
 
 **✅ Password Security**
 - Bcrypt hashing with 10 rounds
@@ -198,7 +198,7 @@ Use `.env.example` as template.
 2. **Session Security**
    - Log out when finished
    - Don't leave sessions open on shared computers
-   - Tokens expire after 24 hours (automatic logout)
+   - Tokens expire after 30 days (automatic logout)
 
 ---
 
