@@ -11,5 +11,13 @@ Restart=always
 RestartSec=5
 Environment=NODE_ENV=production
 
+# Graceful shutdown settings
+TimeoutStopSec=15
+KillMode=mixed
+KillSignal=SIGTERM
+
+# Cleanup any lingering processes on the port before starting
+ExecStartPre=/bin/sh -c 'fuser -k 3000/tcp || true'
+
 [Install]
 WantedBy=multi-user.target

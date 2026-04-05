@@ -40,6 +40,11 @@ fi
 echo "==> Stopping ServerInv service"
 systemctl stop ${SERVICE_NAME}
 
+# Ensure all processes are stopped and port is free
+echo "==> Ensuring port 3000 is available"
+fuser -k 3000/tcp 2>/dev/null || true
+sleep 2
+
 echo "==> Cleaning build artifacts"
 cd "$APP_DIR"
 sudo -u "$APP_USER" find . -name "*.tsbuildinfo" -type f -delete 2>/dev/null || true
