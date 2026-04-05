@@ -121,34 +121,34 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 
     # Update APP_URL in server/.env
     if grep -q "^APP_URL=" "$APP_DIR/server/.env"; then
-      sed -i "s|^APP_URL=.*|APP_URL=$app_url|" "$APP_DIR/server/.env"
+      sudo -u "$APP_USER" sed -i "s|^APP_URL=.*|APP_URL=$app_url|" "$APP_DIR/server/.env"
       echo "✓ Updated APP_URL in $APP_DIR/server/.env"
     else
-      echo "APP_URL=$app_url" >> "$APP_DIR/server/.env"
+      sudo -u "$APP_USER" bash -c "echo 'APP_URL=$app_url' >> '$APP_DIR/server/.env'"
       echo "✓ Added APP_URL to $APP_DIR/server/.env"
     fi
 
     # Update ALLOWED_ORIGINS in server/.env
     if grep -q "^ALLOWED_ORIGINS=" "$APP_DIR/server/.env"; then
-      sed -i "s|^ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=$allowed_origins|" "$APP_DIR/server/.env"
+      sudo -u "$APP_USER" sed -i "s|^ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=$allowed_origins|" "$APP_DIR/server/.env"
       echo "✓ Updated ALLOWED_ORIGINS in $APP_DIR/server/.env"
     else
-      echo "ALLOWED_ORIGINS=$allowed_origins" >> "$APP_DIR/server/.env"
+      sudo -u "$APP_USER" bash -c "echo 'ALLOWED_ORIGINS=$allowed_origins' >> '$APP_DIR/server/.env'"
       echo "✓ Added ALLOWED_ORIGINS to $APP_DIR/server/.env"
     fi
 
     # Also update root .env if it exists
     if [ -f "$APP_DIR/.env" ]; then
       if grep -q "^APP_URL=" "$APP_DIR/.env"; then
-        sed -i "s|^APP_URL=.*|APP_URL=$app_url|" "$APP_DIR/.env"
+        sudo -u "$APP_USER" sed -i "s|^APP_URL=.*|APP_URL=$app_url|" "$APP_DIR/.env"
       else
-        echo "APP_URL=$app_url" >> "$APP_DIR/.env"
+        sudo -u "$APP_USER" bash -c "echo 'APP_URL=$app_url' >> '$APP_DIR/.env'"
       fi
 
       if grep -q "^ALLOWED_ORIGINS=" "$APP_DIR/.env"; then
-        sed -i "s|^ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=$allowed_origins|" "$APP_DIR/.env"
+        sudo -u "$APP_USER" sed -i "s|^ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=$allowed_origins|" "$APP_DIR/.env"
       else
-        echo "ALLOWED_ORIGINS=$allowed_origins" >> "$APP_DIR/.env"
+        sudo -u "$APP_USER" bash -c "echo 'ALLOWED_ORIGINS=$allowed_origins' >> '$APP_DIR/.env'"
       fi
 
       echo "✓ Updated APP_URL and ALLOWED_ORIGINS in $APP_DIR/.env"
@@ -183,20 +183,20 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     # Update or add ALLOWED_ORIGINS in .env file
     if grep -q "ALLOWED_ORIGINS=" "$APP_DIR/server/.env"; then
       # Update existing
-      sed -i "s|ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=$new_origins|" "$APP_DIR/server/.env"
+      sudo -u "$APP_USER" sed -i "s|ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=$new_origins|" "$APP_DIR/server/.env"
       echo "✓ Updated ALLOWED_ORIGINS in $APP_DIR/server/.env"
     else
       # Add new
-      echo "ALLOWED_ORIGINS=$new_origins" >> "$APP_DIR/server/.env"
+      sudo -u "$APP_USER" bash -c "echo 'ALLOWED_ORIGINS=$new_origins' >> '$APP_DIR/server/.env'"
       echo "✓ Added ALLOWED_ORIGINS to $APP_DIR/server/.env"
     fi
 
     # Also update root .env if it exists
     if [ -f "$APP_DIR/.env" ]; then
       if grep -q "ALLOWED_ORIGINS=" "$APP_DIR/.env"; then
-        sed -i "s|ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=$new_origins|" "$APP_DIR/.env"
+        sudo -u "$APP_USER" sed -i "s|ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=$new_origins|" "$APP_DIR/.env"
       else
-        echo "ALLOWED_ORIGINS=$new_origins" >> "$APP_DIR/.env"
+        sudo -u "$APP_USER" bash -c "echo 'ALLOWED_ORIGINS=$new_origins' >> '$APP_DIR/.env'"
       fi
       echo "✓ Updated ALLOWED_ORIGINS in $APP_DIR/.env"
     fi
@@ -232,9 +232,9 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
       key=$(echo "$var" | cut -d= -f1)
       value=$(echo "$var" | cut -d= -f2-)
       if grep -q "^$key=" "$APP_DIR/server/.env"; then
-        sed -i "s|^$key=.*|$key=$value|" "$APP_DIR/server/.env"
+        sudo -u "$APP_USER" sed -i "s|^$key=.*|$key=$value|" "$APP_DIR/server/.env"
       else
-        echo "$key=$value" >> "$APP_DIR/server/.env"
+        sudo -u "$APP_USER" bash -c "echo '$key=$value' >> '$APP_DIR/server/.env'"
       fi
     done
 
@@ -244,9 +244,9 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
         key=$(echo "$var" | cut -d= -f1)
         value=$(echo "$var" | cut -d= -f2-)
         if grep -q "^$key=" "$APP_DIR/.env"; then
-          sed -i "s|^$key=.*|$key=$value|" "$APP_DIR/.env"
+          sudo -u "$APP_USER" sed -i "s|^$key=.*|$key=$value|" "$APP_DIR/.env"
         else
-          echo "$key=$value" >> "$APP_DIR/.env"
+          sudo -u "$APP_USER" bash -c "echo '$key=$value' >> '$APP_DIR/.env'"
         fi
       done
     fi
