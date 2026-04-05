@@ -340,6 +340,35 @@ All methods will:
 - Update the password and ensure admin role if the username already exists
 - Work with both PostgreSQL and MySQL databases
 
+#### Verifying Admin Credentials
+
+After resetting credentials, you can verify they work correctly using the diagnostic tool:
+
+```bash
+# VPS default installation
+cd /opt/serverinv/server
+sudo -u serverinv npx tsx src/db/verify-user.ts <username> <password>
+
+# VPS custom installation
+cd /opt/serverinv-prod/server
+sudo -u serverinv-prod npx tsx src/db/verify-user.ts <username> <password>
+
+# Shared hosting
+cd ~/serverinv/server
+npx tsx src/db/verify-user.ts <username> <password>
+```
+
+**Example:**
+```bash
+sudo -u serverinv npx tsx src/db/verify-user.ts admin MyPassword123
+```
+
+The tool will show:
+- ✓ If the user exists in the database
+- ✓ If the password hash is in the correct format
+- ✅ If the password matches (login should work)
+- ❌ If the password doesn't match (need to reset again)
+
 ### Updating Application URL (APP_URL)
 
 If password reset email links are pointing to the wrong URL (e.g., localhost instead of your domain):
@@ -619,6 +648,50 @@ Common issues:
 - Environment variable missing: Check `.env` file
 - Database connection failed: Verify `DATABASE_URL`
 - Port conflict: Check if port 3000 is in use
+
+### Can't login after update
+
+If you can't login with your credentials after an update:
+
+**1. Verify the service is running:**
+
+```bash
+# VPS (default installation)
+sudo systemctl status serverinv-serverinv
+
+# VPS (custom installation - replace with your username)
+sudo systemctl status serverinv-serverinv-prod
+
+# Shared hosting (DirectAdmin/VirtualMin)
+systemctl --user status serverinv
+
+# Shared hosting (VirtualMin with PM2)
+pm2 status serverinv
+```
+
+**2. Use the diagnostic tool to verify credentials:**
+
+```bash
+# VPS
+cd /opt/serverinv/server
+sudo -u serverinv npx tsx src/db/verify-user.ts <username> <password>
+
+# Shared hosting
+cd ~/serverinv/server
+npx tsx src/db/verify-user.ts <username> <password>
+```
+
+The tool will tell you if the password is correct or needs to be reset again.
+
+**3. If password doesn't match, reset it:**
+
+See the [Resetting Admin Credentials](#resetting-admin-credentials) section above.
+
+**Common causes:**
+- Server crashed due to EADDRINUSE error (check logs)
+- Typo in password when resetting
+- Browser autocomplete filling old credentials
+- CORS configuration blocking requests
 
 ### Frontend shows old version after update
 

@@ -562,6 +562,55 @@ ls /opt/serverinv/client/dist/  # Should contain index.html and assets/
 sudo chown -R serverinv:serverinv /opt/serverinv
 ```
 
+### Can't login / Invalid credentials
+
+If you can't login after resetting admin credentials:
+
+**1. First, verify the backend server is running:**
+
+```bash
+sudo systemctl status serverinv-serverinv
+```
+
+If the service shows `active (running)`, the backend is working. If it's failing, check the logs:
+
+```bash
+sudo journalctl -u serverinv-serverinv -n 50 --no-pager
+```
+
+**2. Use the diagnostic tool to verify credentials:**
+
+The `verify-user.ts` script tests if your username and password are correct in the database:
+
+```bash
+cd /opt/serverinv/server
+sudo -u serverinv npx tsx src/db/verify-user.ts <username> <password>
+```
+
+**Example:**
+```bash
+sudo -u serverinv npx tsx src/db/verify-user.ts admin MyPassword123
+```
+
+**The tool will show:**
+- ✓ If the user exists in the database
+- ✓ If the password hash is in the correct format
+- ✅ If the password matches (login should work)
+- ❌ If the password doesn't match (need to reset again)
+
+**3. If the password doesn't match, reset it again:**
+
+```bash
+cd /opt/serverinv
+sudo bash deploy/reset-admin.sh
+```
+
+**Common causes:**
+- Server wasn't running (EADDRINUSE error - see logs)
+- Typo in password when resetting
+- Using wrong username
+- Browser autocomplete filling old credentials
+
 ---
 
 ## Backup & Restore Features
